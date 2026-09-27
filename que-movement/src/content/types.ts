@@ -1,5 +1,5 @@
-// The shape of Q Movement content. Every pack is plain data in this shape,
-// so new packs (Classical Mat, Reformer…) are added as data files, never as screens.
+// The shape of Que Movement content. Everything the game knows about is plain data
+// in this shape, so a new Technique branch is added as a data file, never as a screen.
 
 export type Level = 'foundation' | 'working' | 'challenge';
 export type Position = 'supine' | 'prone' | 'side-lying' | 'quadruped' | 'kneeling' | 'seated' | 'standing';
@@ -8,15 +8,13 @@ export type Dose =
   | { kind: 'reps'; reps: number; perSide?: boolean }
   | { kind: 'hold'; seconds: number; perSide?: boolean };
 
-export interface Deck {
+/** A path of study inside a Technique branch (Bridging, Core, Shoulders). Colours its Qcards. */
+export interface Path {
   id: string;
   name: string;
   tagline: string;
   description: string;
-  regionId: string;
   accentVar: string;
-  artKey: string;
-  packId: string;
 }
 
 interface CardBase {
@@ -31,10 +29,8 @@ interface CardBase {
 
 export interface MovementCard extends CardBase {
   kind: 'movement';
-  deckId: string;
+  pathId: string;
   level: Level;
-  unlockedByDefault: boolean;
-  requirements: string[];
   position: Position;
   dose: Dose;
 }
@@ -47,70 +43,59 @@ export interface TransitionCard extends CardBase {
 
 export interface ProgressionCard extends CardBase {
   kind: 'progression';
+  pathId: string;
   effect: string;
 }
 
 export type SpecialCard = TransitionCard | ProgressionCard;
 export type Card = MovementCard | SpecialCard;
 
-export type ChallengeTrigger = 'sequence-saved' | 'sequence-complete' | 'remix';
+/** One Technique on the skill tree. Unlocking it creates its Qcard. */
+export interface TechniqueNode {
+  id: string;
+  cardId: string;
+  pathId: string;
+  /** Position on the tree, in % of the canvas. */
+  x: number;
+  y: number;
+  /** Points to spend. 0 = known from the start. */
+  cost: number;
+  /** Techniques that must be known first. At least one of them must also have been practised. */
+  requires: string[];
+  note: string;
+}
 
-export interface Challenge {
+export interface Branch {
+  id: string;
+  name: string;
+  subtitle: string;
+  nodes: TechniqueNode[];
+}
+
+export type MilestoneTrigger = 'sequence-saved' | 'sequence-complete' | 'remix' | 'technique' | 'published' | 'deck-made';
+
+export interface Milestone {
   id: string;
   name: string;
   description: string;
-  detail: string;
-  trigger: ChallengeTrigger;
+  trigger: MilestoneTrigger;
   rule: {
-    requiredCardIds?: string[];
-    requiredDeckIds?: string[];
+    requiredPathIds?: string[];
     minTransitions?: number;
     minProgressions?: number;
     minCards?: number;
-    requireFullCompletion?: boolean;
+    /** Every Technique on this path is known. */
+    masterPath?: string;
   };
-  reward: { points?: number; badgeId?: string; themeId?: string; unlocksCardId?: string };
-  packId: string;
+  reward: { points?: number; badgeId: string; themeId?: string };
 }
 
 export interface Theme {
   id: string;
   name: string;
   description: string;
-  packId: string;
   unlockedByDefault: boolean;
   vars: Record<string, string>;
-}
-
-export interface RegionNode {
-  id: string;
-  label: string;
-  x: number;
-  y: number;
-  note: string;
-  concept?: boolean;
-  cardId?: string;
-  deckId?: string;
-}
-
-export interface Region {
-  id: string;
-  name: string;
-  subtitle: string;
-  accentVar: string;
-  packId: string;
-  nodes: RegionNode[];
-  links: [string, string][];
-}
-
-export interface Expansion {
-  id: string;
-  name: string;
-  description: string;
-  deckIds: string[];
-  themeId?: string;
-  installedByDefault: boolean;
-  available: boolean;
 }
 
 export interface Badge {
@@ -120,31 +105,18 @@ export interface Badge {
   description: string;
 }
 
-export interface Pack {
-  id: string;
-  decks: Deck[];
-  movementCards: MovementCard[];
-  specialCards: SpecialCard[];
-  challenges: Challenge[];
-  themes: Theme[];
-  regions: Region[];
-}
-
-/** Everything the installed packs add up to. */
+/** Everything the game knows about. */
 export interface Content {
-  packIds: string[];
-  decks: Deck[];
+  branch: Branch;
+  paths: Path[];
+  pathById: Record<string, Path>;
   movementCards: MovementCard[];
   specialCards: SpecialCard[];
   cards: Card[];
   cardById: Record<string, Card>;
-  deckById: Record<string, Deck>;
-  challenges: Challenge[];
+  nodeById: Record<string, TechniqueNode>;
+  nodeByCard: Record<string, TechniqueNode>;
+  milestones: Milestone[];
   themes: Theme[];
-  regions: Region[];
-  expansions: Expansion[];
   badges: Badge[];
-  /** Every movement card that exists in any pack, installed or not (the Q Map needs this). */
-  allMovementCards: MovementCard[];
-  allDecks: Deck[];
 }

@@ -1,5 +1,5 @@
 import type { ReactNode } from 'react';
-import { RULES } from '../content/catalog';
+import { nextStep, readNode, type LoopStep } from '../game/rules';
 import { useStore } from '../game/store';
 import { firstIn, focusEl, useInput, type PadKey } from '../input/InputProvider';
 import { SECTIONS, useNav } from './nav';
@@ -13,27 +13,48 @@ export function GearIcon() {
   );
 }
 
+const LOOP: { step: LoopStep; label: string }[] = [
+  { step: 'learn', label: 'Learn' },
+  { step: 'collect', label: 'Collect' },
+  { step: 'build', label: 'Build' },
+  { step: 'play', label: 'Play' },
+  { step: 'earn', label: 'Earn' },
+  { step: 'unlock', label: 'Unlock' },
+  { step: 'share', label: 'Share' }
+];
+
 export function TopBar() {
-  const { state } = useStore();
+  const { state, content } = useStore();
   const { mode, openSettings, settingsOpen } = useInput();
-  const pct = (state.countedPoints / RULES.pointCap) * 100;
+  const { go, section } = useNav();
+  const next = nextStep(state, content);
+  const playing = !!state.play && !state.play.finished;
   return (
     <header className="topbar">
-      <div className="brand" aria-label="Q Movement">
+      <div className="brand" aria-label="Que Movement">
         <span className="brand__q" aria-hidden="true">Q</span>
-        <span className="brand__word" aria-hidden="true">Movement</span>
+        <span className="brand__word" aria-hidden="true">ue Movement</span>
       </div>
       <div className="topbar__spacer" />
+      <button type="button" className={`guide guide--${next.step} ${section === next.go ? 'is-here' : ''}`} onClick={() => go(next.go)}
+        aria-label={`Next step: ${next.text}`} data-a="Go there" title="Learn · Collect · Build · Play · Earn · Unlock · Share">
+        <span className="guide__loop" aria-hidden="true">
+          {LOOP.map((l) => <span key={l.step} className={`guide__step ${l.step === next.step ? 'is-on' : ''}`}><i />{l.label}</span>)}
+        </span>
+        <span className="guide__text"><span className="guide__next">Next</span>{next.text}<span aria-hidden="true" className="guide__arrow">→</span></span>
+      </button>
+      <div className="topbar__spacer" />
       <div className="hud" aria-label="Progress">
-        <div className="hud__item" title="Points counting toward progression">
-          <span className="hud__value">{state.countedPoints}<span className="hud__cap">/{RULES.pointCap}</span></span>
-          <span className="hud__meter" aria-hidden="true"><span style={{ width: `${pct}%` }} /></span>
+        <div className="hud__item hud__item--points" title={`${state.lifetimePoints} earned in all. Spend points on Techniques.`}>
+          <span className="hud__value"><span className="hud__spark" aria-hidden="true">✦</span>{state.points}</span>
           <span className="hud__label">Points</span>
         </div>
-        <div className={`hud__item ${state.streak > 0 ? 'is-hot' : ''}`} title="Streak inside the current sequence">
-          <span className="hud__value">{state.streak}</span>
-          <span className="hud__label">Streak</span>
-        </div>
+        {playing && (
+          <div className={`hud__item ${state.streak > 0 ? 'is-hot' : ''}`} title="Streak inside the current Sequence">
+            <span className="hud__value">{state.streak}</span>
+            <span className="hud__label">Streak</span>
+          </div>
+        )}
       </div>
       <button type="button" className="settings-btn" aria-haspopup="dialog" aria-expanded={settingsOpen} title="Settings (Esc)" onClick={openSettings}>
         <GearIcon />
@@ -46,8 +67,9 @@ export function TopBar() {
 
 export function Tabs() {
   const { section, go } = useNav();
-  const { state } = useStore();
+  const { state, content } = useStore();
   const { mode } = useInput();
+  const ready = content.branch.nodes.some((n) => readNode(n, state, content).status === 'ready');
   /** A on the current tab steps into the page, like entering a menu. */
   const enter = () => { if (mode === 'pad') { const page = document.querySelector('.page'); if (page) focusEl(firstIn(page)); } };
   return (
@@ -55,6 +77,7 @@ export function Tabs() {
       {SECTIONS.map((s, i) => {
         const current = s.id === section;
         const live = s.id === 'play' && !!state.play && !state.play.finished;
+        const dot = s.id === 'technique' && ready;
         return (
           <button
             key={s.id}
@@ -68,7 +91,8 @@ export function Tabs() {
           >
             <span className="tab__glyph" aria-hidden="true">{s.glyph}</span>
             <span className="tab__label">{s.label}</span>
-            {live && <span className="tab__live" title="A sequence is in progress"><span className="sr-only">in progress</span></span>}
+            {live && <span className="tab__live" title="A Sequence is in progress"><span className="sr-only">in progress</span></span>}
+            {dot && !live && <span className="tab__live" title="A Technique is ready to learn"><span className="sr-only">a Technique is ready</span></span>}
           </button>
         );
       })}
@@ -95,9 +119,9 @@ export function PromptBar() {
   if (mode !== 'pad') {
     return (
       <footer className="bar bar--quiet">
-        <span>Q Movement</span>
+        <span>Que Movement</span>
         <span className="bar__moons" aria-hidden="true">☾ · ☽ · ☾ · ☽</span>
-        <span>Pilates for a more vibrant life</span>
+        <span>Build your vocabulary. Shape it into something worth performing.</span>
       </footer>
     );
   }
@@ -144,12 +168,12 @@ export function PortraitGuard() {
       <div className="portrait-guard__turn">
         <span className="portrait-guard__icon" aria-hidden="true">⟲</span>
         <p className="portrait-guard__title">Turn your tablet sideways</p>
-        <p>Q Movement is played in landscape.</p>
+        <p>Que Movement is played in landscape.</p>
       </div>
       <div className="portrait-guard__small">
         <span className="portrait-guard__icon portrait-guard__icon--still" aria-hidden="true">☾</span>
         <p className="portrait-guard__title">Made for a bigger page</p>
-        <p>Q Movement is laid out for tablets and computers in landscape. Open it on one of those to play.</p>
+        <p>Que Movement is laid out for tablets and computers in landscape. Open it on one of those to play.</p>
       </div>
     </div>
   );

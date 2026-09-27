@@ -1,5 +1,3 @@
-import type { Level } from '../content/types';
-
 export type ReactionKey = 'creative' | 'sweaty' | 'gentle' | 'educational';
 
 export interface Slot {
@@ -12,8 +10,6 @@ export interface Slot {
 export interface Analytics {
   plays: number;
   completedPlays: number;
-  rewatches: number;
-  cardsViewed: number;
   completionPercents: number[];
 }
 
@@ -21,6 +17,10 @@ export interface Sequence {
   id: string;
   name: string;
   author: string;
+  /** The creator's Studio, shown In the Queue. */
+  studio?: string;
+  /** A line from the creator. */
+  note?: string;
   seeded?: boolean;
   slots: Slot[];
   createdAt: number;
@@ -30,7 +30,7 @@ export interface Sequence {
   reactions: Record<ReactionKey, number>;
   myReaction: ReactionKey | null;
   analytics: Analytics;
-  community?: { plays: number; completedPlays: number; rewatches: number };
+  community?: { plays: number; saves: number };
   signatureAtLastCompletion?: string[];
 }
 
@@ -41,48 +41,54 @@ export interface PlayState {
   streak: number;
   bestStreak: number;
   pointsEarned: number;
-  viewedSlotIds: string[];
   startedAt: number;
   finished: boolean;
 }
 
-export interface PendingUnlock {
-  cardId: string;
-  cardName: string;
-  level: Level;
-  deckName: string;
-  message: string;
-}
-
-/** Player-made folders for saved sequences. Anything not in a folder lives in "My builds". */
-export interface Folder {
+/** A player-made deck inside the Repertoire. */
+export interface RepDeck {
   id: string;
   name: string;
-  sequenceIds: string[];
+  cardIds: string[];
 }
 
+/** A newly learned Technique, waiting to be revealed as a Qcard. */
+export interface PendingReveal {
+  cardId: string;
+}
+
+export type DecorSlot = 'wall' | 'floor' | 'rug' | 'mat' | 'equipment' | 'plant' | 'lamp' | 'prop';
+
 export interface GameState {
-  version: 3;
-  unlockedCardIds: string[];
+  version: 4;
+  /** Qcards you own: learned Techniques plus the starter transitions. */
+  ownedCardIds: string[];
+  /** Points to spend on Techniques. */
+  points: number;
+  /** Every point ever earned (Studio shows it; spending never lowers it). */
+  lifetimePoints: number;
   completedCounts: Record<string, number>;
-  totalPoints: number;
-  countedPoints: number;
   sequences: Sequence[];
   draftName: string;
   draftSlots: Slot[];
   draftSourceId: string | null;
-  completedChallengeIds: string[];
+  decks: RepDeck[];
+  primaryDeckId: string;
+  archivedCardIds: string[];
+  /** Sequences saved from In the Queue. */
+  savedSequenceIds: string[];
+  pinnedSequenceId: string | null;
+  completedMilestoneIds: string[];
   badgeIds: string[];
+  pendingMilestoneIds: string[];
+  pendingReveals: PendingReveal[];
   themeId: string;
   unlockedThemeIds: string[];
-  installedPackIds: string[];
+  studioName: string;
+  decor: Record<DecorSlot, string>;
   streak: number;
   play: PlayState | null;
-  pendingUnlocks: PendingUnlock[];
-  pendingChallengeIds: string[];
-  decksCompletedInSequence: string[];
   seenIntro: boolean;
-  folders: Folder[];
 }
 
 export type Action =
@@ -95,24 +101,31 @@ export type Action =
   | { type: 'draft/clear' }
   | { type: 'draft/new' }
   | { type: 'draft/load'; sequenceId: string }
-  | { type: 'sequence/save'; folderId?: string }
+  | { type: 'sequence/save' }
   | { type: 'sequence/saveAndStart' }
   | { type: 'sequence/publish'; sequenceId: string }
   | { type: 'sequence/react'; sequenceId: string; reaction: ReactionKey }
-  | { type: 'sequence/copy'; sequenceId: string }
+  | { type: 'sequence/remix'; sequenceId: string }
   | { type: 'sequence/delete'; sequenceId: string }
-  | { type: 'folder/create'; folderId: string; name: string; sequenceId?: string }
-  | { type: 'folder/move'; sequenceId: string; folderId: string }
-  | { type: 'folder/delete'; folderId: string }
+  | { type: 'sequence/toggleSaved'; sequenceId: string }
+  | { type: 'sequence/pin'; sequenceId: string | null }
+  | { type: 'technique/unlock'; nodeId: string }
+  | { type: 'deck/create'; deckId: string; name: string; cardIds?: string[] }
+  | { type: 'deck/rename'; deckId: string; name: string }
+  | { type: 'deck/delete'; deckId: string }
+  | { type: 'deck/primary'; deckId: string }
+  | { type: 'deck/add'; deckId: string; cardId: string }
+  | { type: 'deck/remove'; deckId: string; cardId: string }
+  | { type: 'card/archive'; cardId: string }
+  | { type: 'card/restore'; cardId: string }
   | { type: 'play/start'; sequenceId: string }
   | { type: 'play/goto'; index: number }
   | { type: 'play/complete' }
   | { type: 'play/exit' }
-  | { type: 'ui/dismissRewards' }
+  | { type: 'ui/dismissReveal' }
+  | { type: 'ui/dismissMilestones' }
   | { type: 'ui/seenIntro' }
   | { type: 'theme/set'; themeId: string }
-  | { type: 'pack/install'; packId: string }
-  | { type: 'pack/uninstall'; packId: string }
+  | { type: 'studio/name'; name: string }
+  | { type: 'studio/decor'; slot: DecorSlot; variant: string }
   | { type: 'game/reset' };
-
-export const MY_BUILDS = 'f-mine';

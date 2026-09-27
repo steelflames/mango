@@ -1,66 +1,33 @@
-import type { Sequence } from '../game/types';
+import type { Sequence, Slot } from '../game/types';
 
 const hoursAgo = (h: number) => Date.now() - 1000 * 60 * 60 * h;
 
-/** Community builds that ship with the game (a simulated feed, kept on this device). */
+function seed(id: string, name: string, author: string, studio: string, note: string, hours: number, cards: (string | [string, ...string[]])[], reactions: [number, number, number, number], plays: number, saves: number): Sequence {
+  const slots: Slot[] = cards.map((c, i) => (Array.isArray(c) ? { slotId: `${id}-${i}`, cardId: c[0], modifiers: c.slice(1) } : { slotId: `${id}-${i}`, cardId: c, modifiers: [] }));
+  const [creative, sweaty, gentle, educational] = reactions;
+  return {
+    id, name, author, studio, note, seeded: true, slots,
+    createdAt: hoursAgo(hours), updatedAt: hoursAgo(hours), published: true, publishedAt: hoursAgo(hours),
+    reactions: { creative, sweaty, gentle, educational }, myReaction: null,
+    analytics: { plays: 0, completedPlays: 0, completionPercents: [] },
+    community: { plays, saves }
+  };
+}
+
+/** Sequences other movers have shared In the Queue (a simulated feed, kept on this device). */
 export function seedSequences(): Sequence[] {
   return [
-    {
-      id: 'seed-morning-flow',
-      name: 'Mountain Morning Flow',
-      author: 'RiverMoves',
-      seeded: true,
-      slots: [
-        { slotId: 's1', cardId: 'core-foundation', modifiers: ['pr-slow-tempo'] },
-        { slotId: 's2', cardId: 'bridge-foundation', modifiers: [] },
-        { slotId: 's3', cardId: 'tr-seated-supine', modifiers: [] },
-        { slotId: 's4', cardId: 'scapula-foundation', modifiers: ['pr-longer-lever'] }
-      ],
-      createdAt: hoursAgo(52),
-      updatedAt: hoursAgo(52),
-      published: true,
-      publishedAt: hoursAgo(52),
-      reactions: { creative: 128, sweaty: 96, gentle: 214, educational: 173 },
-      myReaction: null,
-      analytics: { plays: 1892, completedPlays: 1476, rewatches: 610, cardsViewed: 10820, completionPercents: [78] }
-    },
-    {
-      id: 'seed-quiet-shoulders',
-      name: 'Quiet Shoulders, Long Spine',
-      author: 'LunaMoves',
-      seeded: true,
-      slots: [
-        { slotId: 's1', cardId: 'scapula-foundation', modifiers: ['pr-longer-lever'] },
-        { slotId: 's2', cardId: 'tr-seated-supine', modifiers: [] },
-        { slotId: 's3', cardId: 'core-foundation', modifiers: ['pr-add-coordination'] },
-        { slotId: 's4', cardId: 'bridge-foundation', modifiers: [] }
-      ],
-      createdAt: hoursAgo(120),
-      updatedAt: hoursAgo(120),
-      published: true,
-      publishedAt: hoursAgo(120),
-      reactions: { creative: 64, sweaty: 12, gentle: 188, educational: 241 },
-      myReaction: null,
-      analytics: { plays: 903, completedPlays: 742, rewatches: 288, cardsViewed: 4120, completionPercents: [82] }
-    },
-    {
-      id: 'seed-slow-strength',
-      name: 'Slow Strength, No Rush',
-      author: 'Studio Fern',
-      seeded: true,
-      slots: [
-        { slotId: 's1', cardId: 'core-foundation', modifiers: [] },
-        { slotId: 's2', cardId: 'bridge-foundation', modifiers: ['pr-add-load', 'pr-slow-tempo'] },
-        { slotId: 's3', cardId: 'tr-seated-supine', modifiers: [] },
-        { slotId: 's4', cardId: 'scapula-foundation', modifiers: ['pr-narrow-support'] }
-      ],
-      createdAt: hoursAgo(9),
-      updatedAt: hoursAgo(9),
-      published: true,
-      publishedAt: hoursAgo(9),
-      reactions: { creative: 41, sweaty: 155, gentle: 37, educational: 88 },
-      myReaction: null,
-      analytics: { plays: 412, completedPlays: 301, rewatches: 96, cardsViewed: 2510, completionPercents: [71] }
-    }
+    seed('seed-back-line', 'Wake the Back Line', 'RiverMoves', 'Riverside Room', 'Glutes first thing, before coffee has a say.', 7,
+      ['breathing', 'bridge', ['bridge-march', 'pr-slow-tempo'], 'tr-supine-side', 'clam'], [96, 142, 88, 131], 2140, 318),
+    seed('seed-ten-minute-centre', 'Ten-Minute Centre', 'Pip Okafor', 'The Moss Room', 'The flexion ladder I teach every new client.', 19,
+      ['breathing', 'dead-bug', 'toe-taps', 'hundred-prep', 'roll-up'], [74, 190, 61, 244], 3380, 612),
+    seed('seed-quiet-shoulders', 'Quiet Shoulders, Long Spine', 'LunaMoves', 'Luna’s Loft', 'For the desk-bound. Which is all of us.', 30,
+      ['scapular-glide', 'tr-seated-supine', 'breathing', 'dead-bug', 'bridge'], [64, 12, 188, 241], 903, 147),
+    seed('seed-slow-strength', 'Slow Strength, No Rush', 'Studio Fern', 'Studio Fern', 'Everything at half speed. It’s harder than it sounds.', 52,
+      ['dead-bug', ['bridge', 'pr-slow-tempo'], 'tr-roll-to-quadruped', 'quad-press', 'bird-dog'], [41, 155, 37, 88], 1412, 201),
+    seed('seed-hands-heart', 'Hands, Then Heart', 'Marguerite', 'The Attic Barre', 'Onto the hands, then open the front of the body.', 76,
+      ['scapular-glide', 'tr-quad-seated', 'quad-press', ['bird-dog', 'pr-add-coordination'], 'tr-quad-prone', 'swan-prep', 'plank-control'], [182, 97, 44, 120], 1180, 266),
+    seed('seed-whole-mat', 'The Whole Mat', 'Sol Reyes', 'Sunday Mat Club', 'One of everything, bridged all the way through.', 120,
+      ['breathing', 'bridge', 'dead-bug', 'tr-roll-to-quadruped', 'bird-dog', 'tr-quad-prone', 'swan-prep'], [211, 84, 150, 176], 4020, 780)
   ];
 }

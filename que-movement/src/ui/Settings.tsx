@@ -69,7 +69,7 @@ export function Settings() {
                 <p>Show what A, B, X and Y will do, along the bottom of the screen.</p>
                 <Options<boolean> label="Button prompts" value={prefs.prompts} onPick={(v) => setPrefs({ prompts: v })} options={[[true, 'Show'], [false, 'Hide']]} />
               </section>
-              <p className="setting__note">Esc on a keyboard, or ☰ on a controller, always brings you back here — even if you have picked Mouse or Touch. Number keys 1–7 jump straight to a section.</p>
+              <p className="setting__note">Esc on a keyboard, or ☰ on a controller, always brings you back here — even if you have picked Mouse or Touch. Number keys 1–5 jump straight to a section.</p>
             </>
           )}
           {key === 'motion' && (
@@ -90,10 +90,10 @@ export function Settings() {
           {key === 'data' && (
             <section className="setting">
               <h3>Progress on this device</h3>
-              <p>{state.countedPoints} points counted · {state.completedChallengeIds.length} challenges · {state.unlockedCardIds.length} cards open · {state.sequences.filter((s) => !s.seeded).length} saved builds.</p>
+              <p>{state.points} points to spend · {state.lifetimePoints} earned in all · {state.badgeIds.length} badges · {state.ownedCardIds.length} Qcards · {state.sequences.filter((s) => !s.seeded).length} Sequences.</p>
               <div className="seg-options">
                 <button type="button" className="chip chip--danger" onClick={async () => {
-                  const ok = await confirm({ title: 'Reset all progress?', body: 'Points, unlocked cards, challenges, badges and saved builds on this device start over. Settings stay as they are.', confirm: 'Reset progress', danger: true });
+                  const ok = await confirm({ title: 'Reset all progress?', body: 'Points, Techniques, Qcards, decks, badges, Sequences and your Studio on this device start over. Settings stay as they are.', confirm: 'Reset progress', danger: true });
                   if (ok) dispatch({ type: 'game/reset' });
                 }}>Reset all progress</button>
               </div>

@@ -1,14 +1,11 @@
 import { useCallback, useEffect, useMemo, useState, type ComponentType } from 'react';
 import { useStore } from './game/store';
 import { InputProvider, useInput } from './input/InputProvider';
-import { BuilderScreen } from './screens/BuilderScreen';
-import { ChallengesScreen } from './screens/ChallengesScreen';
-import { CommunityScreen } from './screens/CommunityScreen';
-import { DecksScreen } from './screens/DecksScreen';
-import { MapScreen } from './screens/MapScreen';
 import { PlayScreen } from './screens/PlayScreen';
+import { QueueScreen } from './screens/QueueScreen';
+import { RepertoireScreen } from './screens/RepertoireScreen';
 import { StudioScreen } from './screens/StudioScreen';
-import { collections } from './screens/builder/library';
+import { TechniqueScreen } from './screens/TechniqueScreen';
 import { Intro } from './ui/Intro';
 import { DEFAULT_BUILDER_VIEW, NavContext, SECTIONS, type BuilderView, type SectionId } from './ui/nav';
 import { OverlayProvider } from './ui/Overlays';
@@ -17,28 +14,25 @@ import { Settings } from './ui/Settings';
 import { PortraitGuard, PromptBar, Tabs, Toast, TopBar } from './ui/Shell';
 
 const SCREENS: Record<SectionId, ComponentType> = {
-  map: MapScreen,
-  library: DecksScreen,
-  builder: BuilderScreen,
+  technique: TechniqueScreen,
+  repertoire: RepertoireScreen,
   play: PlayScreen,
-  challenges: ChallengesScreen,
-  community: CommunityScreen,
+  queue: QueueScreen,
   studio: StudioScreen
 };
-const SECTION_KEY = 'q-movement:section';
+const SECTION_KEY = 'que-movement:section';
 
 function loadSection(): SectionId {
   try {
     const s = localStorage.getItem(SECTION_KEY) as SectionId | null;
-    return s && s in SCREENS ? s : 'library';
-  } catch { return 'library'; }
+    return s && s in SCREENS ? s : 'technique';
+  } catch { return 'technique'; }
 }
 
 export function App() {
   const { state, content } = useStore();
   const [section, setSection] = useState<SectionId>(loadSection);
   const [builder, setBuilderState] = useState<BuilderView>(DEFAULT_BUILDER_VIEW);
-  const [deckFocus, setDeckFocus] = useState<string | null>(null);
   const setBuilder = useCallback((p: Partial<BuilderView>) => setBuilderState((b) => ({ ...b, ...p })), []);
   const go = useCallback((id: SectionId) => setSection(id), []);
 
@@ -48,20 +42,22 @@ export function App() {
   useEffect(() => {
     const theme = content.themes.find((t) => t.id === state.themeId) ?? content.themes[0];
     const root = document.documentElement;
-    if (!theme) return;
     for (const [k, v] of Object.entries(theme.vars)) root.style.setProperty(k, v);
     root.dataset.theme = theme.id;
     document.querySelector('meta[name="theme-color"]')?.setAttribute('content', theme.vars['--paper-deep'] ?? '#d9ccae');
   }, [state.themeId, content]);
 
-  // Starting a sequence from anywhere takes you to Play.
+  // Starting a Sequence from anywhere takes you to Play.
   const startedAt = state.play?.startedAt;
   useEffect(() => { if (startedAt) setSection('play'); }, [startedAt]);
 
-  // If a pack is removed while its deck is showing in the Builder, fall back to All.
-  useEffect(() => { if (!collections(content).includes(builder.coll)) setBuilder({ coll: 'all' }); }, [content, builder.coll, setBuilder]);
+  // A deleted deck can't stay on screen in the Repertoire.
+  useEffect(() => {
+    const c = builder.coll;
+    if (c.startsWith('d-') && !state.decks.some((d) => d.id === c)) setBuilder({ coll: 'primary' });
+  }, [state.decks, builder.coll, setBuilder]);
 
-  const nav = useMemo(() => ({ section, go, builder, setBuilder, deckFocus, setDeckFocus }), [section, go, builder, setBuilder, deckFocus]);
+  const nav = useMemo(() => ({ section, go, builder, setBuilder }), [section, go, builder, setBuilder]);
 
   return (
     <NavContext.Provider value={nav}>

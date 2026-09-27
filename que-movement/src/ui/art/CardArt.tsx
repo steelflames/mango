@@ -1,32 +1,73 @@
-import { memo, useId } from 'react';
+import { memo, useId, useSyncExternalStore } from 'react';
 import type { Card } from '../../content/types';
-import { SHAPES } from './shapes';
+import { ART, type Shape } from './shapes';
 
-const FALLBACK: Record<Card['kind'], string> = { movement: 'bridge-foundation', transition: 'transition-roll', progression: 'progression-tempo' };
+const FALLBACK: Record<Card['kind'], string> = { movement: 'bridge', transition: 'transition-roll', progression: 'progression-tempo' };
 
-/** The wash behind each drawing picks up its deck's colour, so decks read at a glance. */
-function washFor(card: Pick<Card, 'kind'> & { deckAccent?: string }) {
-  if (card.deckAccent) return card.deckAccent;
-  if (card.kind === 'transition') return 'var(--dusty-blue)';
-  if (card.kind === 'progression') return 'var(--aubergine)';
+/** The wash behind each drawing picks up its path's colour, so paths read at a glance. */
+function washFor(kind: Card['kind'], accent?: string) {
+  if (accent) return accent;
+  if (kind === 'transition') return 'var(--dusty-blue)';
+  if (kind === 'progression') return 'var(--aubergine)';
   return 'var(--sage)';
+}
+
+// Live art respects Settings › Motion and the device's reduced-motion setting.
+const reduceQuery = typeof window !== 'undefined' ? window.matchMedia('(prefers-reduced-motion: reduce)') : null;
+function subscribe(cb: () => void) {
+  reduceQuery?.addEventListener('change', cb);
+  const mo = new MutationObserver(cb);
+  mo.observe(document.documentElement, { attributes: true, attributeFilter: ['data-motion'] });
+  return () => { reduceQuery?.removeEventListener('change', cb); mo.disconnect(); };
+}
+function motionOk() {
+  const pref = document.documentElement.dataset.motion;
+  if (pref === 'reduce') return false;
+  if (pref === 'full') return true;
+  return !reduceQuery?.matches;
+}
+export function useMotionOk() {
+  return useSyncExternalStore(subscribe, motionOk, () => false);
+}
+
+const EASE = '0.45 0 0.55 1;0.45 0 0.55 1';
+
+function Pose({ shape, dur, live }: { shape: Shape; dur: number; live: boolean }) {
+  const p: Record<string, string | number> = { ...shape.a, vectorEffect: 'non-scaling-stroke' };
+  if (shape.soft) { p.strokeWidth = 1.2; p.opacity = 0.75; }
+  const cls = shape.flow && live ? 'is-flow' : undefined;
+  const anims = live && shape.b
+    ? Object.entries(shape.b).map(([k, v]) => (
+      <animate key={k} attributeName={k} values={`${shape.a[k]};${v};${shape.a[k]}`} keyTimes="0;0.5;1" calcMode="spline" keySplines={EASE} dur={`${dur}s`} repeatCount="indefinite" />
+    ))
+    : null;
+  const spin = live && shape.spin
+    ? <animateTransform attributeName="transform" type="rotate" from={`0 ${shape.spin[0]} ${shape.spin[1]}`} to={`360 ${shape.spin[0]} ${shape.spin[1]}`} dur={`${dur}s`} repeatCount="indefinite" />
+    : null;
+  return shape.t === 'circle'
+    ? <circle {...p} className={cls}>{anims}{spin}</circle>
+    : <path {...p} className={cls}>{anims}{spin}</path>;
 }
 
 interface Props {
   art: string;
   kind: Card['kind'];
-  deckAccent?: string;
+  accent?: string;
   className?: string;
   dim?: boolean;
+  /** Breathe between the two poses, drift the wash, run the pathways. */
+  live?: boolean;
 }
 
-/** A card's line drawing over a soft watercolour wash. Themes recolour it automatically. */
-export const CardArt = memo(function CardArt({ art, kind, deckAccent, className = '', dim }: Props) {
-  const shapes = SHAPES[art] ?? SHAPES[FALLBACK[kind]];
+/** A Qcard's line drawing over a soft watercolour wash. Themes recolour it automatically. */
+export const CardArt = memo(function CardArt({ art, kind, accent, className = '', dim, live = false }: Props) {
+  const def = ART[art] ?? ART[FALLBACK[kind]];
   const id = `wash${useId().replace(/:/g, '')}`;
-  const tint = washFor({ kind, deckAccent });
+  const motion = useMotionOk();
+  const on = live && motion;
+  const tint = washFor(kind, accent);
   return (
-    <svg className={`card-art ${dim ? 'is-dim' : ''} ${className}`} viewBox="0 0 160 100" preserveAspectRatio="xMidYMid slice" aria-hidden="true" focusable="false">
+    <svg className={`card-art ${dim ? 'is-dim' : ''} ${on ? 'is-live' : ''} ${className}`} viewBox="0 0 160 100" preserveAspectRatio="xMidYMid slice" aria-hidden="true" focusable="false">
       <defs>
         <filter id={id} x="-40%" y="-40%" width="180%" height="180%">
           <feGaussianBlur stdDeviation="9" />
@@ -38,12 +79,7 @@ export const CardArt = memo(function CardArt({ art, kind, deckAccent, className 
         <ellipse cx="80" cy="78" rx="46" ry="16" fill="var(--wash-c)" />
       </g>
       <g className="card-art__ink" fill="none" stroke="var(--ink)" strokeWidth={1.6} strokeLinecap="round" strokeLinejoin="round">
-        {shapes.map((s, i) => {
-          const p: Record<string, string | number> = { ...s.a, vectorEffect: 'non-scaling-stroke' };
-          if (s.soft) { p.strokeWidth = 1.2; p.opacity = 0.75; }
-          const Tag = s.t;
-          return <Tag key={i} {...p} />;
-        })}
+        {def.shapes.map((s, i) => <Pose key={`${art}${i}`} shape={s} dur={def.dur} live={on} />)}
       </g>
     </svg>
   );

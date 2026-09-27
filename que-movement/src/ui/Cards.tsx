@@ -1,4 +1,4 @@
-import type { ReactNode } from 'react';
+import type { PointerEvent, ReactNode } from 'react';
 import { LEVEL_LABEL, POSITION_LABEL } from '../content/content';
 import type { Card, Content } from '../content/types';
 import { doseLabel } from '../game/rules';
@@ -10,9 +10,14 @@ export function tagOf(card: Card): { label: string; cls: string } {
 }
 
 export function accentOf(card: Card, content: Content): string | undefined {
-  if (card.kind !== 'movement') return undefined;
-  const deck = content.deckById[card.deckId] ?? content.allDecks.find((d) => d.id === card.deckId);
-  return deck ? `var(${deck.accentVar})` : undefined;
+  if (card.kind === 'transition') return undefined;
+  const path = content.pathById[card.pathId];
+  return path ? `var(${path.accentVar})` : undefined;
+}
+
+export function familyOf(card: Card, content: Content): string {
+  if (card.kind === 'transition') return 'Transition';
+  return content.pathById[card.pathId]?.name ?? '';
 }
 
 export function metaOf(card: Card): string {
@@ -26,53 +31,71 @@ export function Tag({ card, className = '' }: { card: Card; className?: string }
   return <span className={`tag ${t.cls} ${className}`}>{t.label}</span>;
 }
 
-export function Art({ card, content, dim, className }: { card: Card; content: Content; dim?: boolean; className?: string }) {
-  return <CardArt art={card.art} kind={card.kind} deckAccent={accentOf(card, content)} dim={dim} className={className} />;
+export function Art({ card, content, dim, live, className }: { card: Card; content: Content; dim?: boolean; live?: boolean; className?: string }) {
+  return <CardArt art={card.art} kind={card.kind} accent={accentOf(card, content)} dim={dim} live={live} className={className} />;
 }
 
-/** A 2×2 cover made from a sequence's first cards, like a playlist cover. */
+/** A 2×2 cover made from a Sequence's first cards, like a playlist cover. */
 export function Mosaic({ cardIds, content, className = '' }: { cardIds: string[]; content: Content; className?: string }) {
   const cards = cardIds.map((id) => content.cardById[id]).filter(Boolean).slice(0, 4) as Card[];
   return (
     <span className={`mosaic mosaic--${Math.max(1, cards.length)} ${className}`} aria-hidden="true">
-      {cards.map((c, i) => <CardArt key={i} art={c.art} kind={c.kind} deckAccent={accentOf(c, content)} />)}
+      {cards.map((c, i) => <CardArt key={i} art={c.art} kind={c.kind} accent={accentOf(c, content)} />)}
     </span>
   );
 }
 
-/** The full playing card — used in Play, the details peek and the unlock reveal. */
-export function BigCard({ card, content, modifiers = [], footer, locked, glow, deckName, compact }: {
+/** Tilt toward the pointer, with the drawing floating a little above the paper. */
+function tilt(e: PointerEvent<HTMLElement>) {
+  if (e.pointerType !== 'mouse') return;
+  const el = e.currentTarget;
+  const r = el.getBoundingClientRect();
+  const x = (e.clientX - r.left) / r.width - 0.5;
+  const y = (e.clientY - r.top) / r.height - 0.5;
+  el.style.setProperty('--rx', `${(-y * 7).toFixed(2)}deg`);
+  el.style.setProperty('--ry', `${(x * 9).toFixed(2)}deg`);
+  el.style.setProperty('--px', `${(x * 8).toFixed(1)}px`);
+  el.style.setProperty('--py', `${(y * 6).toFixed(1)}px`);
+}
+function untilt(e: PointerEvent<HTMLElement>) {
+  const el = e.currentTarget;
+  for (const k of ['--rx', '--ry', '--px', '--py']) el.style.removeProperty(k);
+}
+
+/** The full Qcard: Play, the details peek, the Technique tree and the reveal. Alive unless told otherwise. */
+export function BigCard({ card, content, modifiers = [], footer, locked, glow, compact, still }: {
   card: Card;
   content: Content;
   modifiers?: Card[];
   footer?: ReactNode;
   locked?: boolean;
   glow?: boolean;
-  deckName?: string;
   compact?: boolean;
+  still?: boolean;
 }) {
-  const deck = deckName ?? (card.kind === 'movement' ? (content.deckById[card.deckId] ?? content.allDecks.find((d) => d.id === card.deckId))?.name : tagOf(card).label);
   return (
-    <article className={`big-card big-card--${card.kind} ${glow ? 'is-glowing' : ''} ${locked ? 'is-locked' : ''} ${compact ? 'is-compact' : ''}`}>
-      <span className="big-card__frame" aria-hidden="true" />
-      <header className="big-card__head">
-        <Tag card={card} />
-        <span className="big-card__deck">{deck}</span>
-      </header>
-      <div className="big-card__art">
-        <Art card={card} content={content} dim={locked} />
-        {locked && <span className="lock-badge" aria-hidden="true"><LockIcon /></span>}
-      </div>
-      <h3 className="big-card__name">{card.name}</h3>
-      <p className="big-card__cue">{card.shortCue}</p>
-      <p className="big-card__goal">{card.movementGoal}</p>
-      {modifiers.length > 0 && (
-        <ul className="big-card__mods" aria-label="Progressions on this card">
-          {modifiers.map((m) => <li key={m.id}><span aria-hidden="true">+</span> {m.name}<em>{m.kind === 'progression' ? m.effect : ''}</em></li>)}
-        </ul>
-      )}
-      {footer && <footer className="big-card__foot">{footer}</footer>}
-    </article>
+    <div className="big-card-wrap" onPointerMove={tilt} onPointerLeave={untilt}>
+      <article className={`big-card big-card--${card.kind} ${glow ? 'is-glowing' : ''} ${locked ? 'is-locked' : ''} ${compact ? 'is-compact' : ''}`} style={{ ['--accent' as string]: accentOf(card, content) ?? 'var(--dusty-blue)' }}>
+        <span className="big-card__frame" aria-hidden="true" />
+        <header className="big-card__head">
+          <Tag card={card} />
+          <span className="big-card__family"><span className="big-card__q" aria-hidden="true">Q</span>{familyOf(card, content)}</span>
+        </header>
+        <div className="big-card__art">
+          <Art card={card} content={content} dim={locked} live={!still && !locked} />
+          {locked && <span className="lock-badge" aria-hidden="true"><LockIcon /></span>}
+        </div>
+        <h3 className="big-card__name">{card.name}</h3>
+        <p className="big-card__cue">{card.shortCue}</p>
+        <p className="big-card__goal">{card.movementGoal}</p>
+        {modifiers.length > 0 && (
+          <ul className="big-card__mods" aria-label="Progressions on this card">
+            {modifiers.map((m) => <li key={m.id}><span aria-hidden="true">+</span> {m.name}<em>{m.kind === 'progression' ? m.effect : ''}</em></li>)}
+          </ul>
+        )}
+        {footer && <footer className="big-card__foot">{footer}</footer>}
+      </article>
+    </div>
   );
 }
 

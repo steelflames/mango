@@ -52,7 +52,7 @@ interface InputApi {
 type Kind = 'back' | 'primary' | 'triggers' | 'bumpers' | 'layer' | 'dirs';
 
 const Ctx = createContext<InputApi | null>(null);
-const PREFS_KEY = 'q-movement:settings';
+const PREFS_KEY = 'que-movement:settings';
 
 function loadPrefs(): Prefs {
   try {

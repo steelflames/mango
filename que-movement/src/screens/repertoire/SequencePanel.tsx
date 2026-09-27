@@ -4,13 +4,13 @@ import { POSITION_LABEL } from '../../content/content';
 import type { Card } from '../../content/types';
 import { clock, mixLabel, readSeams, sequenceStats, transitionsFor, type Seam, type SlotView } from '../../game/rules';
 import { useStore } from '../../game/store';
-import { MY_BUILDS } from '../../game/types';
 import { focusEl, useBack, useDirections, useInput } from '../../input/InputProvider';
 import { Art } from '../../ui/Cards';
 import { CardDetails } from '../../ui/CardDetails';
 import { useNav } from '../../ui/nav';
 import { useOverlays, type MenuItem } from '../../ui/Overlays';
 import { useDraft } from '../../ui/useDraft';
+import { useCardDrag } from './drag';
 import { MoreIcon } from './Library';
 
 function GripIcon() {
@@ -19,11 +19,12 @@ function GripIcon() {
 
 interface Drag { slotId: string; from: number; startY: number; dy: number; over: number; active: boolean; pointerId: number }
 
-/** Right column: the build, like a playlist — name it, reorder it, bridge its seams, start it. */
-export function Queue() {
+/** Right column: the Sequence, like a playlist. Name it, order it, bridge its seams, perform it. */
+export function SequencePanel() {
   const { state, dispatch, content } = useStore();
   const { builder, setBuilder } = useNav();
-  const { openMenu, confirm, ask, openSheet } = useOverlays();
+  const { openMenu, confirm, openSheet } = useOverlays();
+  const { drag: cardDrag } = useCardDrag();
   const { toast, mode } = useInput();
   const draft = useDraft();
   const slots = state.draftSlots;
@@ -31,7 +32,6 @@ export function Queue() {
   const { seams, transitionStatus, openSeams, route } = readSeams(slots, content);
   const listRef = useRef<HTMLOListElement>(null);
   const headMore = useRef<HTMLButtonElement>(null);
-  const saveRef = useRef<HTMLButtonElement>(null);
   const [moving, setMoving] = useState<{ slotId: string; from: number } | null>(null);
   const [drag, setDrag] = useState<Drag | null>(null);
   const prevIds = useRef<string[]>(slots.map((s) => s.slotId));
@@ -123,35 +123,21 @@ export function Queue() {
       });
       for (const m of v.modifiers) items.push({ label: `Take off ${m.name}`, onSelect: () => dispatch({ type: 'draft/detach', slotId: v.slot.slotId, cardId: m.id }) });
     }
-    items.push({ label: 'Remove from build', danger: true, onSelect: () => { dispatch({ type: 'draft/remove', slotId: v.slot.slotId }); if (builder.selectedSlotId === v.slot.slotId) setBuilder({ selectedSlotId: null }); toast(`${v.card.name} removed.`); } });
+    items.push({ label: 'Take out of Sequence', danger: true, onSelect: () => { dispatch({ type: 'draft/remove', slotId: v.slot.slotId }); if (builder.selectedSlotId === v.slot.slotId) setBuilder({ selectedSlotId: null }); toast(`${v.card.name} taken out.`); } });
     openMenu(anchor, `${i + 1}. ${v.card.name}`, items);
   };
 
   const newBuild = async () => {
-    if (draft.dirty && !(await confirm({ title: 'Start a new build?', body: 'The build in progress has changes that aren’t saved. They’ll be let go.', confirm: 'New build' }))) return;
+    if (draft.dirty && !(await confirm({ title: 'Start a new Sequence?', body: 'The Sequence in progress has changes that aren’t saved. They’ll be let go.', confirm: 'New Sequence' }))) return;
     dispatch({ type: 'draft/new' });
     setBuilder({ selectedSlotId: null });
   };
-  const headMenu = () => openMenu(headMore.current, 'This build', [
-    { label: 'New build', onSelect: newBuild },
+  const headMenu = () => openMenu(headMore.current, 'This Sequence', [
+    { label: 'New Sequence', onSelect: newBuild },
     { label: 'Clear all steps', disabled: !slots.length, onSelect: async () => { if (await confirm({ title: 'Clear every step?', body: 'The name stays. Saved copies are untouched.', confirm: 'Clear steps', danger: true })) dispatch({ type: 'draft/clear' }); } }
   ]);
 
-  const saveTo = (folderId: string, name: string) => { dispatch({ type: 'sequence/save', folderId }); toast(`Saved to ${name}.`); };
-  const saveMenu = () => {
-    const current = draft.source ? state.folders.find((f) => f.id !== MY_BUILDS && f.sequenceIds.includes(draft.source!.id))?.id ?? MY_BUILDS : null;
-    openMenu(saveRef.current, draft.source ? 'Save changes to…' : 'Save to…', [
-      ...state.folders.map((f) => ({ label: f.name, checked: current === f.id, onSelect: () => saveTo(f.id, f.name) })),
-      { label: 'New folder…', onSelect: async () => {
-        const name = await ask({ title: 'Save to a new folder', label: 'Folder name', placeholder: 'Morning, Clients, Gentle…', confirm: 'Create and save' });
-        if (!name) return;
-        const id = `f-${Date.now().toString(36)}`;
-        dispatch({ type: 'folder/create', folderId: id, name });
-        dispatch({ type: 'sequence/save', folderId: id });
-        toast(`Saved to ${name}.`);
-      } }
-    ]);
-  };
+  const save = () => { if (!slots.length) return; dispatch({ type: 'sequence/save' }); toast(`${state.draftName.trim() || 'Untitled Sequence'} saved. It’s under Your Sequences.`); };
 
   const start = () => { if (slots.length) dispatch({ type: 'sequence/saveAndStart' }); };
   const seamBefore = new Map<number, Seam>(seams.filter((s) => s.status === 'open').map((s) => [s.index, s]));
@@ -160,12 +146,12 @@ export function Queue() {
   return (
     <aside className="queue" aria-label="Your sequence">
       <header className="queue__head">
-        <p className="eyebrow">Your sequence</p>
+        <p className="eyebrow">Your Sequence</p>
         <button ref={headMore} type="button" className="more-btn" aria-label="Build options" aria-haspopup="menu" onClick={headMenu}><MoreIcon /></button>
       </header>
       <label className="queue__name">
-        <span className="sr-only">Name this build</span>
-        <input value={state.draftName} maxLength={48} placeholder="Name this build…" onChange={(e) => dispatch({ type: 'draft/name', name: e.target.value })} />
+        <span className="sr-only">Name this Sequence</span>
+        <input value={state.draftName} maxLength={48} placeholder="Name this Sequence…" onChange={(e) => dispatch({ type: 'draft/name', name: e.target.value })} />
       </label>
       <div className="queue__stats">
         <div className="queue__nums"><span><strong>{slots.length}</strong> of {RULES.maxSteps} steps</span><span><strong>{clock(stats.durationSeconds)}</strong> total</span></div>
@@ -178,12 +164,12 @@ export function Queue() {
         <p className="queue__mix">{mixLabel(stats.mix)}{stats.transitionCount ? ` · ${stats.transitionCount} transition${stats.transitionCount > 1 ? 's' : ''}` : ''}{stats.progressionCount ? ` · ${stats.progressionCount} progression${stats.progressionCount > 1 ? 's' : ''}` : ''}</p>
       </div>
 
-      <ol ref={listRef} className={`queue__list scroll ${drag?.active ? 'is-dragging' : ''}`}>
+      <ol ref={listRef} className={`queue__list scroll ${drag?.active ? 'is-dragging' : ''} ${cardDrag ? 'is-drop-target' : ''} ${cardDrag?.target && cardDrag.target.kind !== 'deck' ? 'is-over' : ''}`} data-drop-queue="">
         {!slots.length && (
           <li className="queue__empty">
             <p className="queue__empty-title">An empty page</p>
-            <p>Tap a card to add it. Mix decks, then bridge any change of position with a transition.</p>
-            <p className="muted">Five steps with Bridging, Scapula and Core together is a Full Practice.</p>
+            <p>Tap a Qcard to add it, or drag it here. Three or four is plenty for a first Sequence.</p>
+            <p className="muted">Five steps across Bridging, Core and Shoulders is a Full Practice.</p>
           </li>
         )}
         {stats.views.map((v, i) => {
@@ -196,10 +182,12 @@ export function Queue() {
           return (
             <Fragment key={id}>
               {drag?.active && drag.over === i && drag.from > i && <li className="drop-line" aria-hidden="true" />}
+              {cardDrag?.target?.kind === 'queue' && cardDrag.target.index === i && <li className="drop-line drop-line--card" aria-hidden="true" />}
               {seam && <SeamNote seam={seam} />}
               <li
                 data-slot-row={id}
-                className={`q-row q-row--${v.card.kind} ${selected ? 'is-selected' : ''} ${isMoving ? 'is-moving' : ''} ${isDragged ? 'is-dragged' : ''} ${tStatus ? `is-${tStatus}` : ''}`}
+                data-kind={v.card.kind}
+                className={`q-row q-row--${v.card.kind} ${cardDrag?.target?.kind === 'slot' && cardDrag.target.slotId === id ? 'is-attach' : ''} ${selected ? 'is-selected' : ''} ${isMoving ? 'is-moving' : ''} ${isDragged ? 'is-dragged' : ''} ${tStatus ? `is-${tStatus}` : ''}`}
                 style={isDragged ? { transform: `translateY(${drag!.dy}px)` } : undefined}
                 data-x={`qm-${id}`} data-x-label="Step options"
               >
@@ -236,26 +224,26 @@ export function Queue() {
             </Fragment>
           );
         })}
+        {cardDrag?.target?.kind === 'queue' && cardDrag.target.index >= slots.length && <li className="drop-line drop-line--card" aria-hidden="true" />}
       </ol>
 
       <footer className="queue__foot">
-        {route.length > 1 && (
+        {route.length > 1 && slots.length > 0 && (
           <p className="queue__route"><span className="eyebrow">Route</span> {route.map((p) => POSITION_LABEL[p]).join(' → ')}</p>
         )}
         {slots.length > 0 && (
           <p className="queue__flow">
             {openSeams === 0
-              ? route.length > 1 ? 'Every change of position is bridged. Lovely flow.' : 'One position throughout — no transitions needed.'
-              : `${openSeams} position change${openSeams > 1 ? 's' : ''} with no transition — playable as is, smoother with one.`}
+              ? route.length > 1 ? 'Every change of position is bridged. Lovely flow.' : 'One position throughout. No transitions needed.'
+              : `${openSeams} position change${openSeams > 1 ? 's' : ''} with no transition. Playable as is, smoother with one.`}
           </p>
         )}
         <div className="queue__actions">
-          <button ref={saveRef} type="button" className="btn btn--ghost" aria-haspopup="menu" aria-disabled={!slots.length || undefined} onClick={() => slots.length && saveMenu()}
-            data-a={draft.dirty ? 'Save' : 'Saved'}>
-            {slots.length && !draft.dirty ? 'Saved ✓' : 'Save'} <span aria-hidden="true">▾</span>
+          <button type="button" className="btn btn--ghost" aria-disabled={!slots.length || !draft.dirty || undefined} onClick={save} data-a={draft.dirty ? 'Save' : 'Saved'}>
+            {slots.length && !draft.dirty ? 'Saved ✓' : 'Save'}
           </button>
           <button type="button" className="btn btn--primary btn--grow" aria-disabled={!slots.length || undefined} onClick={start}>
-            <span aria-hidden="true">▶</span> Start sequence
+            <span aria-hidden="true">▶</span> Perform
           </button>
         </div>
       </footer>
@@ -271,9 +259,9 @@ function rowMeta(card: Card) {
 
 /** Between two cards whose positions differ: say so, and offer the transitions that fit. */
 function SeamNote({ seam }: { seam: Seam }) {
-  const { content } = useStore();
+  const { state, content } = useStore();
   const draft = useDraft();
-  const fits = transitionsFor(seam.from, seam.to, content).slice(0, 2);
+  const fits = transitionsFor(seam.from, seam.to, content, state.ownedCardIds).slice(0, 2);
   return (
     <li className="seam" aria-label={`${POSITION_LABEL[seam.from]} to ${POSITION_LABEL[seam.to]}: needs a transition`}>
       <span className="seam__text">{POSITION_LABEL[seam.from]} → {POSITION_LABEL[seam.to]} · needs a transition</span>

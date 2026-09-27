@@ -1,7 +1,6 @@
 import { useEffect, useRef, useState } from 'react';
-import { RULES } from '../content/catalog';
 import { POSITION_LABEL } from '../content/content';
-import { clock, doseLabel, mixLabel, sequenceStats, streakBonus, viewSlot } from '../game/rules';
+import { clock, doseLabel, mixLabel, readNode, sequenceStats, streakBonus, viewSlot } from '../game/rules';
 import { useStore } from '../game/store';
 import type { PlayState, Sequence } from '../game/types';
 import { focusEl, useBack, useInput, usePrimary, useTriggers } from '../input/InputProvider';
@@ -9,7 +8,7 @@ import { Art, BigCard, Mosaic } from '../ui/Cards';
 import { useNav } from '../ui/nav';
 import { useOverlays } from '../ui/Overlays';
 import { useDraft } from '../ui/useDraft';
-import { useLoadSequence } from './builder/Sidebar';
+import { useLoadSequence, useRemixSequence } from './repertoire/Sidebar';
 
 export function PlayScreen() {
   const { state } = useStore();
@@ -35,6 +34,9 @@ function Playing({ seq, play }: { seq: Sequence; play: PlayState }) {
   const [pop, setPop] = useState<{ n: number; bonus: number; key: number } | null>(null);
   const completeRef = useRef<HTMLButtonElement>(null);
   const advance = useRef(0);
+  const lastIndex = useRef(index);
+  const dir = index >= lastIndex.current ? 'next' : 'prev';
+  useEffect(() => { lastIndex.current = index; }, [index]);
 
   const firstDuration = views[index]?.duration ?? 0;
   useEffect(() => { setLeft(firstDuration); }, [index, firstDuration]);
@@ -59,11 +61,11 @@ function Playing({ seq, play }: { seq: Sequence; play: PlayState }) {
   };
   const leave = async () => {
     const n = play.completedSlotIds.length;
-    if (await confirm({ title: 'Leave this sequence?', body: n ? `You’ve completed ${n} of ${seq.slots.length} cards. The points you earned stay; the streak ends here.` : 'Nothing is lost — you can play it again from the start any time.', confirm: 'Leave sequence' })) {
+    if (await confirm({ title: 'Leave this Sequence?', body: n ? `You’ve completed ${n} of ${seq.slots.length} cards. The points you earned stay; the streak ends here.` : 'Nothing is lost — you can play it again from the start any time.', confirm: 'Leave Sequence' })) {
       dispatch({ type: 'play/exit' });
     }
   };
-  useBack(true, 'Leave sequence', leave);
+  useBack(true, 'Leave Sequence', leave);
   usePrimary(true, held ? 'Resume timer' : 'Pause timer', () => setHeld((h) => !h), !done(index));
   useTriggers(true, index > 0 ? 'Previous card' : undefined, index < seq.slots.length - 1 ? 'Next card' : undefined, (d) => goto(index + d));
 
@@ -80,7 +82,7 @@ function Playing({ seq, play }: { seq: Sequence; play: PlayState }) {
       <aside className="play__side" aria-label="Up next">
         <p className="eyebrow">Now playing</p>
         <h1 className="play__title">{seq.name}</h1>
-        <p className="play__by">{seq.seeded ? `by ${seq.author}` : 'Your build'} · {seq.slots.length} cards</p>
+        <p className="play__by">{seq.seeded ? `by ${seq.author}` : 'Your Sequence'} · {seq.slots.length} cards</p>
         <ol className="upnext scroll">
           {views.map((w, i) => w && (
             <li key={w.slot.slotId}>
@@ -93,12 +95,12 @@ function Playing({ seq, play }: { seq: Sequence; play: PlayState }) {
             </li>
           ))}
         </ol>
-        <button type="button" className="btn btn--ghost btn--small" onClick={leave}>Leave sequence</button>
+        <button type="button" className="btn btn--ghost btn--small" onClick={leave}>Leave Sequence</button>
       </aside>
 
       <section className="play__stage" aria-live="polite">
         <div className="play__count">Card {index + 1} of {seq.slots.length}</div>
-        <div className="play__card" key={v.slot.slotId}>
+        <div className={`play__card deal-${dir}`} key={v.slot.slotId}>
           <BigCard card={v.card} content={content} modifiers={v.modifiers} glow={isDone}
             footer={<><span>{doseText}</span><span>{v.card.kind === 'movement' ? POSITION_LABEL[v.card.position] : ''}</span><span>{v.points} pts</span></>} />
           {pop && <span key={pop.key} className="points-pop" aria-hidden="true">+{pop.n}{pop.bonus ? <small>streak +{pop.bonus}</small> : null}</span>}
@@ -140,33 +142,39 @@ function PlayComplete({ seq, play }: { seq: Sequence; play: PlayState }) {
   const { go } = useNav();
   const { toast } = useInput();
   const load = useLoadSequence();
+  const remix = useRemixSequence();
   const stats = sequenceStats(seq.slots, content);
   const minutes = Math.max(1, Math.round((Date.now() - play.startedAt) / 60000));
   const mine = !seq.seeded;
   const done = () => dispatch({ type: 'play/exit' });
-  usePrimary(true, 'Play again', () => dispatch({ type: 'play/start', sequenceId: seq.id }));
+  const ready = content.branch.nodes.filter((n) => readNode(n, state, content).status === 'ready');
+  usePrimary(true, ready.length ? 'Spend points in Technique' : 'Perform again', () => { if (ready.length) { done(); go('technique'); } else dispatch({ type: 'play/start', sequenceId: seq.id }); });
   useBack(true, 'Done', done);
-  const full = stats.deckIds.length >= 3 && seq.slots.length >= RULES.fullPractice;
 
   return (
     <div className="screen play-done">
       <div className="play-done__art"><Mosaic cardIds={seq.slots.map((s) => s.cardId)} content={content} /></div>
       <div className="play-done__body">
-        <p className="eyebrow">Sequence complete</p>
+        <p className="eyebrow">Sequence performed</p>
         <h1 className="page-title">{seq.name}</h1>
-        <p className="page-sub">Movement changes people, people change the world. Thank you for practising.</p>
+        <p className="page-sub">You built it, you performed it. Now spend what you earned on what comes next.</p>
         <dl className="done-stats">
-          <div><dt>Cards</dt><dd>{seq.slots.length}</dd></div>
-          <div><dt>Points this run</dt><dd>+{play.pointsEarned}</dd></div>
+          <div className="is-gold"><dt>Earned</dt><dd>✦ {play.pointsEarned}</dd></div>
+          <div><dt>To spend</dt><dd>{state.points}</dd></div>
           <div><dt>Best streak</dt><dd>{play.bestStreak}</dd></div>
           <div><dt>Time</dt><dd>{minutes} min</dd></div>
         </dl>
-        <p className="muted">{mixLabel(stats.mix)}{full ? ' · a Full Practice' : ''} · {state.countedPoints}/{RULES.pointCap} points counted</p>
+        {ready.length > 0 ? (
+          <div className="within-reach">
+            <p className="eyebrow">Within reach</p>
+            <ul>{ready.map((n) => <li key={n.id}><Art card={content.cardById[n.cardId]} content={content} live /><span>{content.cardById[n.cardId].name}<small>✦ {n.cost}</small></span></li>)}</ul>
+          </div>
+        ) : <p className="muted">{mixLabel(stats.mix)} · {stats.totalCards} cards</p>}
         <div className="play-done__actions">
-          {mine && !seq.published && <button type="button" className="btn btn--primary" data-autofocus="" onClick={() => { dispatch({ type: 'sequence/publish', sequenceId: seq.id }); toast(`${seq.name} is in the community feed.`); }}>Publish to community</button>}
-          {mine && seq.published && <button type="button" className="btn btn--primary" data-autofocus="" onClick={() => { done(); go('community'); }}>See it in Community</button>}
-          <button type="button" className={`btn ${mine ? 'btn--ghost' : 'btn--primary'}`} data-autofocus={mine ? undefined : ''} onClick={() => dispatch({ type: 'play/start', sequenceId: seq.id })}>Play again</button>
-          <button type="button" className="btn btn--ghost" onClick={() => { done(); void load(seq); }}>Remix in the builder</button>
+          {ready.length > 0 && <button type="button" className="btn btn--primary" data-autofocus="" onClick={() => { done(); go('technique'); }}>Learn a Technique →</button>}
+          {mine && !seq.published && <button type="button" className={`btn ${ready.length ? 'btn--ghost' : 'btn--primary'}`} data-autofocus={ready.length ? undefined : ''} onClick={() => { dispatch({ type: 'sequence/publish', sequenceId: seq.id }); toast(`${seq.name} is In the Queue.`); }}>Share In the Queue</button>}
+          <button type="button" className="btn btn--ghost" data-autofocus={!ready.length && (!mine || seq.published) ? '' : undefined} onClick={() => dispatch({ type: 'play/start', sequenceId: seq.id })}>Perform again</button>
+          <button type="button" className="btn btn--ghost" onClick={() => { done(); void (mine ? load(seq) : remix(seq)); }}>{mine ? 'Refine in Repertoire' : 'Remix it'}</button>
           <button type="button" className="btn btn--ghost" onClick={done}>Done</button>
         </div>
       </div>
@@ -182,15 +190,16 @@ function PlayEmpty() {
   const draft = useDraft();
   const dstats = sequenceStats(state.draftSlots, content);
   const mine = state.sequences.filter((s) => !s.seeded).sort((a, b) => b.updatedAt - a.updatedAt);
-  const community = state.sequences.filter((s) => s.seeded);
-  usePrimary(state.draftSlots.length > 0, 'Start your build', () => dispatch({ type: 'sequence/saveAndStart' }));
+  const saved = state.savedSequenceIds.map((id) => state.sequences.find((s) => s.id === id)).filter(Boolean) as Sequence[];
+  const community = state.sequences.filter((s) => s.seeded && !state.savedSequenceIds.includes(s.id));
+  usePrimary(state.draftSlots.length > 0, 'Perform your Sequence', () => dispatch({ type: 'sequence/saveAndStart' }));
   return (
     <div className="screen play-empty">
       <header className="page-head">
         <div>
           <p className="eyebrow">Play</p>
           <h1 className="page-title">Ready when you are</h1>
-          <p className="page-sub">Play a build card by card. Complete each one in your own time — the timer is a guide, never a judge.</p>
+          <p className="page-sub">Perform a Sequence card by card. Complete each one in your own time: the timer is a guide, never a judge.</p>
         </div>
       </header>
       <div className="play-empty__body scroll">
@@ -199,22 +208,23 @@ function PlayEmpty() {
             <Mosaic cardIds={state.draftSlots.map((s) => s.cardId)} content={content} className="now-card__art" />
             <div>
               <p className="eyebrow">In the builder</p>
-              <h2>{state.draftName.trim() || 'Untitled Build'}</h2>
+              <h2>{state.draftName.trim() || 'Untitled Sequence'}</h2>
               <p className="muted">{dstats.totalCards} cards · {dstats.durationLabel} · {mixLabel(dstats.mix)}{draft.dirty ? ' · not saved yet' : ''}</p>
             </div>
-            <button type="button" className="btn btn--primary btn--big" data-autofocus="" onClick={() => dispatch({ type: 'sequence/saveAndStart' })}><span aria-hidden="true">▶</span> Start</button>
+            <button type="button" className="btn btn--primary btn--big" data-autofocus="" onClick={() => dispatch({ type: 'sequence/saveAndStart' })}><span aria-hidden="true">▶</span> Perform</button>
           </section>
         ) : (
           <section className="now-card now-card--empty">
             <div>
               <p className="eyebrow">Nothing in the builder</p>
-              <h2>Build something first — or play one below</h2>
+              <h2>Build a Sequence first, or try one below</h2>
             </div>
-            <button type="button" className="btn btn--primary" data-autofocus="" onClick={() => go('builder')}>Open the Builder</button>
+            <button type="button" className="btn btn--primary" data-autofocus="" onClick={() => go('repertoire')}>Open Repertoire</button>
           </section>
         )}
-        {mine.length > 0 && <Shelf title="Your builds" seqs={mine} />}
-        <Shelf title="From the community" seqs={community} />
+        {mine.length > 0 && <Shelf title="Your Sequences" seqs={mine} />}
+        {saved.length > 0 && <Shelf title="Saved from the Queue" seqs={saved} />}
+        <Shelf title="In the Queue" seqs={community} />
       </div>
     </div>
   );
@@ -233,7 +243,7 @@ function Shelf({ title, seqs }: { title: string; seqs: Sequence[] }) {
               aria-label={`Play ${s.name}, ${st.totalCards} cards, ${st.durationLabel}`} data-a={`Play ${s.name}`}>
               <span className="album__art"><Mosaic cardIds={s.slots.map((x) => x.cardId)} content={content} /><span className="album__play" aria-hidden="true">▶</span></span>
               <span className="album__name">{s.name}</span>
-              <span className="album__meta">{s.seeded ? s.author : `${st.totalCards} cards`} · {st.durationLabel}</span>
+              <span className="album__meta">{s.seeded ? s.studio ?? s.author : `${st.totalCards} cards`} · {st.durationLabel}</span>
             </button>
           );
         })}

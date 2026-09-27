@@ -6,8 +6,8 @@ import type { Slot } from '../game/types';
 import { useInput } from '../input/InputProvider';
 import { useNav } from './nav';
 
-/** Adding and attaching cards to the build in progress, with the same limits and
- *  the same gentle messages wherever it happens (tiles, menus, the details peek). */
+/** Adding and attaching Qcards to the Sequence in progress, with the same limits and
+ *  the same gentle messages wherever it happens (tiles, drag and drop, menus, the details peek). */
 export function useDraft() {
   const { state, dispatch, content } = useStore();
   const { builder } = useNav();
@@ -16,7 +16,7 @@ export function useDraft() {
   const full = slots.length >= RULES.maxSteps;
   const selIndex = slots.findIndex((s) => s.slotId === builder.selectedSlotId);
 
-  const isOpen = (card: Card) => card.kind !== 'movement' || state.unlockedCardIds.includes(card.id);
+  const isOpen = (card: Card) => state.ownedCardIds.includes(card.id);
 
   /** Where a progression goes: the selected step if it is a movement, else the last movement. */
   const attachTarget = (): Slot | undefined => {
@@ -26,7 +26,8 @@ export function useDraft() {
   };
 
   const attach = (card: Card, target: Slot | undefined = attachTarget()) => {
-    if (!target) { toast('A progression needs a movement card to change. Add one first.'); return false; }
+    if (!isOpen(card)) { toast(`${card.name} isn’t in your Repertoire yet. Learn it in Technique.`); return false; }
+    if (!target) { toast('A progression needs a movement to change. Add one first.'); return false; }
     const name = content.cardById[target.cardId]?.name ?? 'that card';
     if (target.modifiers.includes(card.id)) { toast(`${card.name} is already on ${name}.`); return false; }
     if (target.modifiers.length >= RULES.maxProgressionsPerCard) { toast(`${name} already carries ${RULES.maxProgressionsPerCard} progressions.`); return false; }
@@ -36,9 +37,12 @@ export function useDraft() {
   };
 
   const add = (card: Card, index?: number) => {
-    if (card.kind === 'progression') return attach(card);
-    if (!isOpen(card)) { toast(`${card.name} is still closed. Its details show how to open it.`); return false; }
-    if (full) { toast(`A sequence holds up to ${RULES.maxSteps} steps.`); return false; }
+    if (card.kind === 'progression') {
+      const t = index !== undefined ? [...slots.slice(0, index)].reverse().find((s) => content.cardById[s.cardId]?.kind === 'movement') : undefined;
+      return attach(card, t);
+    }
+    if (!isOpen(card)) { toast(`${card.name} isn’t in your Repertoire yet. Learn it in Technique.`); return false; }
+    if (full) { toast(`A Sequence holds up to ${RULES.maxSteps} steps.`); return false; }
     dispatch({ type: 'draft/add', cardId: card.id, index });
     const where = index === 0 ? ' at the start' : index !== undefined && index < slots.length ? ` as step ${index + 1}` : '';
     toast(`${card.name} added${where} · ${slots.length + 1} of ${RULES.maxSteps}`);
@@ -48,7 +52,7 @@ export function useDraft() {
   const source = state.sequences.find((s) => s.id === state.draftSourceId);
   const dirty = slots.length > 0 && (!source
     || signature(source.slots).join('|') !== signature(slots).join('|')
-    || source.name !== (state.draftName.trim() || 'Untitled Build'));
+    || source.name !== (state.draftName.trim() || 'Untitled Sequence'));
 
   return { slots, full, selIndex, isOpen, attachTarget, attach, add, dirty, source };
 }

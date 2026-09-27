@@ -1,57 +1,61 @@
-import { buildContent } from '../content/content';
+import { CONTENT } from '../content/content';
 import { RULES } from '../content/catalog';
+import { STARTER_TRANSITIONS } from '../content/mat';
 import { seedSequences } from '../content/seeds';
+import { DECOR, DEFAULT_DECOR } from '../content/studio';
 import type { Content } from '../content/types';
 import {
-  addPoints, applyChallenges, editDistance, emptyAnalytics, findUnlocks, newSlot,
-  newlyMetChallenges, signature, simulatedAudience, streakBonus, viewSlot
+  addPoints, checkMilestones, decorOpen, editDistance, emptyAnalytics, newSlot, readNode,
+  signature, simulatedAudience, streakBonus, viewSlot
 } from './rules';
 import type { Action, GameState, Sequence } from './types';
-import { MY_BUILDS } from './types';
 
-export const STORAGE_KEY = 'q-movement:v2';
-const LEGACY_KEY = 'q-movement:v1';
+export const STORAGE_KEY = 'que-movement:v4';
 export const DEFAULT_THEME = 'watercolor-botanical';
+export const PRIMARY_DECK = 'd-primary';
 
 export function freshState(): GameState {
-  const content = buildContent(['core']);
+  const starters = CONTENT.branch.nodes.filter((n) => n.cost === 0).map((n) => n.cardId);
   return {
-    version: 3,
-    unlockedCardIds: content.movementCards.filter((c) => c.unlockedByDefault).map((c) => c.id),
+    version: 4,
+    ownedCardIds: [...starters, ...STARTER_TRANSITIONS],
+    points: 0,
+    lifetimePoints: 0,
     completedCounts: {},
-    totalPoints: 0,
-    countedPoints: 0,
     sequences: seedSequences(),
     draftName: '',
     draftSlots: [],
     draftSourceId: null,
-    completedChallengeIds: [],
+    decks: [{ id: PRIMARY_DECK, name: 'My Practice', cardIds: starters }],
+    primaryDeckId: PRIMARY_DECK,
+    archivedCardIds: [],
+    savedSequenceIds: [],
+    pinnedSequenceId: null,
+    completedMilestoneIds: [],
     badgeIds: [],
+    pendingMilestoneIds: [],
+    pendingReveals: [],
     themeId: DEFAULT_THEME,
-    unlockedThemeIds: content.themes.filter((t) => t.unlockedByDefault).map((t) => t.id),
-    installedPackIds: ['core'],
+    unlockedThemeIds: CONTENT.themes.filter((t) => t.unlockedByDefault).map((t) => t.id),
+    studioName: 'My Studio',
+    decor: { ...DEFAULT_DECOR },
     streak: 0,
     play: null,
-    pendingUnlocks: [],
-    pendingChallengeIds: [],
-    decksCompletedInSequence: [],
-    seenIntro: false,
-    folders: [{ id: MY_BUILDS, name: 'My builds', sequenceIds: [] }]
+    seenIntro: false
   };
 }
 
-/** Load saved progress. Earlier builds of the game (q-movement:v1) carry over. */
+/** Load saved progress. Saves from Q Movement (before the Technique tree) start fresh. */
 export function loadState(): GameState {
   try {
-    const raw = localStorage.getItem(STORAGE_KEY) ?? localStorage.getItem(LEGACY_KEY);
+    const raw = localStorage.getItem(STORAGE_KEY);
     if (!raw) return freshState();
     const saved = JSON.parse(raw);
-    if (saved.version !== 2 && saved.version !== 3) return freshState();
+    if (saved.version !== 4) return freshState();
     const base = freshState();
     const sequences: Sequence[] = saved.sequences ?? [];
     const missingSeeds = base.sequences.filter((s) => !sequences.some((x) => x.id === s.id));
-    const folders = saved.folders?.length ? saved.folders : base.folders;
-    return { ...base, ...saved, version: 3, sequences: [...sequences, ...missingSeeds], folders };
+    return { ...base, ...saved, decor: { ...base.decor, ...saved.decor }, sequences: [...sequences, ...missingSeeds] };
   } catch {
     return freshState();
   }
@@ -80,17 +84,9 @@ function newSequence(name: string, slots: Sequence['slots'], now: number): Seque
   };
 }
 
-function placeInFolder(state: GameState, sequenceId: string, folderId: string): GameState {
-  return {
-    ...state,
-    folders: state.folders.map((f) => {
-      const rest = f.sequenceIds.filter((id) => id !== sequenceId);
-      return f.id === folderId && folderId !== MY_BUILDS ? { ...f, sequenceIds: [...rest, sequenceId] } : { ...f, sequenceIds: rest };
-    })
-  };
-}
+const copySlots = (slots: Sequence['slots']) => slots.map((s) => ({ ...newSlot(s.cardId), modifiers: [...s.modifiers] }));
 
-export function reduce(state: GameState, action: Action, content: Content = buildContent(state.installedPackIds)): GameState {
+export function reduce(state: GameState, action: Action, content: Content = CONTENT): GameState {
   switch (action.type) {
     case 'draft/name':
       return { ...state, draftName: action.name };
@@ -129,22 +125,16 @@ export function reduce(state: GameState, action: Action, content: Content = buil
     case 'draft/clear':
       return { ...state, draftSlots: [] };
     case 'draft/new':
-      return { ...state, draftSlots: [], draftName: '', draftSourceId: null, streak: 0, play: null };
+      return { ...state, draftSlots: [], draftName: '', draftSourceId: null, streak: 0 };
     case 'draft/load': {
       const seq = state.sequences.find((s) => s.id === action.sequenceId);
       if (!seq) return state;
-      return {
-        ...state,
-        draftSlots: seq.slots.map((s) => ({ ...newSlot(s.cardId), modifiers: [...s.modifiers] })),
-        draftName: seq.name,
-        draftSourceId: seq.seeded ? null : seq.id,
-        streak: 0
-      };
+      return { ...state, draftSlots: copySlots(seq.slots), draftName: seq.name, draftSourceId: seq.seeded ? null : seq.id, streak: 0 };
     }
     case 'sequence/save': {
       if (!state.draftSlots.length) return state;
       const now = Date.now();
-      const name = state.draftName.trim() || 'Untitled Build';
+      const name = state.draftName.trim() || 'Untitled Sequence';
       const slots = state.draftSlots.map((s) => ({ ...s, modifiers: [...s.modifiers] }));
       const existing = state.draftSourceId ? state.sequences.find((s) => s.id === state.draftSourceId && !s.seeded) : undefined;
       let next: GameState;
@@ -157,10 +147,7 @@ export function reduce(state: GameState, action: Action, content: Content = buil
         id = seq.id;
         next = { ...state, sequences: [seq, ...state.sequences] };
       }
-      next = { ...next, draftSourceId: id, draftName: name };
-      if (action.folderId) next = placeInFolder(next, id, action.folderId);
-      const met = newlyMetChallenges({ trigger: 'sequence-saved', completedCardIds: [], completionPercent: 0 }, content, next.completedChallengeIds);
-      return applyChallenges(next, met);
+      return checkMilestones({ ...next, draftSourceId: id, draftName: name }, { trigger: 'sequence-saved' }, content);
     }
     case 'sequence/saveAndStart': {
       const saved = reduce(state, { type: 'sequence/save' }, content);
@@ -168,9 +155,10 @@ export function reduce(state: GameState, action: Action, content: Content = buil
     }
     case 'sequence/publish': {
       const seq = state.sequences.find((s) => s.id === action.sequenceId);
-      if (!seq || seq.published) return state;
+      if (!seq || seq.published || seq.seeded) return state;
       const aud = simulatedAudience(seq.slots.length);
-      return updateSeq(state, seq.id, (s) => ({ ...s, published: true, publishedAt: Date.now(), reactions: aud.reactions, community: aud.community }));
+      const next = updateSeq(state, seq.id, (s) => ({ ...s, published: true, publishedAt: Date.now(), studio: state.studioName, reactions: aud.reactions, community: aud.community }));
+      return checkMilestones(next, { trigger: 'published' }, content);
     }
     case 'sequence/react':
       return updateSeq(state, action.sequenceId, (s) => {
@@ -183,42 +171,74 @@ export function reduce(state: GameState, action: Action, content: Content = buil
         r[action.reaction] += 1;
         return { ...s, reactions: r, myReaction: action.reaction };
       });
-    case 'sequence/copy': {
+    case 'sequence/remix': {
       const src = state.sequences.find((s) => s.id === action.sequenceId);
       if (!src) return state;
       const now = Date.now();
-      const seq = newSequence(`${src.name} (my version)`, src.slots.map((s) => ({ ...newSlot(s.cardId), modifiers: [...s.modifiers] })), now);
-      return { ...state, sequences: [seq, ...state.sequences], draftSlots: seq.slots.map((s) => ({ ...s })), draftName: seq.name, draftSourceId: seq.id, streak: 0 };
+      const seq = newSequence(src.seeded ? `${src.name}, remixed` : `${src.name} (remix)`, copySlots(src.slots), now);
+      return { ...state, sequences: [seq, ...state.sequences], draftSlots: copySlots(seq.slots), draftName: seq.name, draftSourceId: seq.id, streak: 0 };
     }
     case 'sequence/delete':
       return {
         ...state,
-        sequences: state.sequences.filter((s) => s.id !== action.sequenceId),
+        sequences: state.sequences.filter((s) => s.id !== action.sequenceId || s.seeded),
         draftSourceId: state.draftSourceId === action.sequenceId ? null : state.draftSourceId,
-        folders: state.folders.map((f) => ({ ...f, sequenceIds: f.sequenceIds.filter((id) => id !== action.sequenceId) }))
+        pinnedSequenceId: state.pinnedSequenceId === action.sequenceId ? null : state.pinnedSequenceId
       };
-    case 'folder/create': {
-      const next = { ...state, folders: [...state.folders, { id: action.folderId, name: action.name, sequenceIds: [] }] };
-      return action.sequenceId ? placeInFolder(next, action.sequenceId, action.folderId) : next;
+    case 'sequence/toggleSaved': {
+      const on = state.savedSequenceIds.includes(action.sequenceId);
+      const next = updateSeq(state, action.sequenceId, (s) => (s.community ? { ...s, community: { ...s.community, saves: s.community.saves + (on ? -1 : 1) } } : s));
+      return { ...next, savedSequenceIds: on ? state.savedSequenceIds.filter((id) => id !== action.sequenceId) : [action.sequenceId, ...state.savedSequenceIds] };
     }
-    case 'folder/move':
-      return placeInFolder(state, action.sequenceId, action.folderId);
-    case 'folder/delete':
-      return action.folderId === MY_BUILDS ? state : { ...state, folders: state.folders.filter((f) => f.id !== action.folderId) };
+    case 'sequence/pin':
+      return { ...state, pinnedSequenceId: action.sequenceId };
+
+    case 'technique/unlock': {
+      const node = content.nodeById[action.nodeId];
+      if (!node || readNode(node, state, content).status !== 'ready') return state;
+      const next: GameState = {
+        ...state,
+        points: state.points - node.cost,
+        ownedCardIds: [...state.ownedCardIds, node.cardId],
+        pendingReveals: [...state.pendingReveals, { cardId: node.cardId }]
+      };
+      return checkMilestones(next, { trigger: 'technique' }, content);
+    }
+
+    case 'deck/create': {
+      const decks = [...state.decks, { id: action.deckId, name: action.name, cardIds: action.cardIds ?? [] }];
+      return checkMilestones({ ...state, decks }, { trigger: 'deck-made' }, content);
+    }
+    case 'deck/rename':
+      return { ...state, decks: state.decks.map((d) => (d.id === action.deckId ? { ...d, name: action.name } : d)) };
+    case 'deck/delete': {
+      if (state.decks.length <= 1) return state;
+      const decks = state.decks.filter((d) => d.id !== action.deckId);
+      return { ...state, decks, primaryDeckId: state.primaryDeckId === action.deckId ? decks[0].id : state.primaryDeckId };
+    }
+    case 'deck/primary':
+      return state.decks.some((d) => d.id === action.deckId) ? { ...state, primaryDeckId: action.deckId } : state;
+    case 'deck/add':
+      if (!state.ownedCardIds.includes(action.cardId)) return state;
+      return {
+        ...state,
+        archivedCardIds: state.archivedCardIds.filter((id) => id !== action.cardId),
+        decks: state.decks.map((d) => (d.id === action.deckId && !d.cardIds.includes(action.cardId) ? { ...d, cardIds: [...d.cardIds, action.cardId] } : d))
+      };
+    case 'deck/remove':
+      return { ...state, decks: state.decks.map((d) => (d.id === action.deckId ? { ...d, cardIds: d.cardIds.filter((id) => id !== action.cardId) } : d)) };
+    case 'card/archive':
+      return state.archivedCardIds.includes(action.cardId) ? state : { ...state, archivedCardIds: [...state.archivedCardIds, action.cardId] };
+    case 'card/restore':
+      return { ...state, archivedCardIds: state.archivedCardIds.filter((id) => id !== action.cardId) };
+
     case 'play/start': {
       const seq = state.sequences.find((s) => s.id === action.sequenceId);
       if (!seq || !seq.slots.length) return state;
-      const plays = seq.analytics.plays + 1;
       return {
-        ...updateSeq(state, seq.id, (s) => ({
-          ...s,
-          analytics: { ...s.analytics, plays, rewatches: plays > 1 ? s.analytics.rewatches + 1 : s.analytics.rewatches, cardsViewed: s.analytics.cardsViewed + 1 }
-        })),
+        ...updateSeq(state, seq.id, (s) => ({ ...s, analytics: { ...s.analytics, plays: s.analytics.plays + 1 } })),
         streak: 0,
-        play: {
-          sequenceId: seq.id, index: 0, completedSlotIds: [], streak: 0, bestStreak: 0, pointsEarned: 0,
-          viewedSlotIds: seq.slots[0] ? [seq.slots[0].slotId] : [], startedAt: Date.now(), finished: false
-        }
+        play: { sequenceId: seq.id, index: 0, completedSlotIds: [], streak: 0, bestStreak: 0, pointsEarned: 0, startedAt: Date.now(), finished: false }
       };
     }
     case 'play/goto': {
@@ -226,11 +246,7 @@ export function reduce(state: GameState, action: Action, content: Content = buil
       if (!play) return state;
       const seq = state.sequences.find((s) => s.id === play.sequenceId);
       if (!seq) return state;
-      const index = Math.max(0, Math.min(seq.slots.length - 1, action.index));
-      const slot = seq.slots[index];
-      const seen = play.viewedSlotIds.includes(slot.slotId);
-      const next = seen ? state : updateSeq(state, seq.id, (s) => ({ ...s, analytics: { ...s.analytics, cardsViewed: s.analytics.cardsViewed + 1 } }));
-      return { ...next, play: { ...play, index, viewedSlotIds: seen ? play.viewedSlotIds : [...play.viewedSlotIds, slot.slotId] } };
+      return { ...state, play: { ...play, index: Math.max(0, Math.min(seq.slots.length - 1, action.index)) } };
     }
     case 'play/complete': {
       const play = state.play;
@@ -254,66 +270,38 @@ export function reduce(state: GameState, action: Action, content: Content = buil
       };
       const p = next.play!;
       if (p.completedSlotIds.length !== seq.slots.length) return next;
-      // The whole sequence is done: record it, check challenges and unlocks.
-      const completedCardIds = p.completedSlotIds.flatMap((id) => {
-        const s = seq.slots.find((x) => x.slotId === id);
-        return s ? [s.cardId, ...s.modifiers] : [];
-      });
+      // The whole Sequence is done: record it and check milestones.
+      const completedCardIds = seq.slots.flatMap((s) => [s.cardId, ...s.modifiers]);
       next = updateSeq(next, seq.id, (s) => ({ ...s, analytics: { ...s.analytics, completedPlays: s.analytics.completedPlays + 1, completionPercents: [...s.analytics.completionPercents, 100] } }));
-      const met = newlyMetChallenges({ trigger: 'sequence-complete', completedCardIds, completionPercent: 100 }, content, next.completedChallengeIds);
+      next = checkMilestones(next, { trigger: 'sequence-complete', completedCardIds }, content);
       const sig = signature(seq.slots);
-      if (seq.signatureAtLastCompletion && editDistance(seq.signatureAtLastCompletion, sig) >= 2) {
-        met.push(...newlyMetChallenges({ trigger: 'remix', completedCardIds, completionPercent: 100 }, content, next.completedChallengeIds));
-      }
-      next = applyChallenges(next, met);
+      if (seq.signatureAtLastCompletion && editDistance(seq.signatureAtLastCompletion, sig) >= 2) next = checkMilestones(next, { trigger: 'remix', completedCardIds }, content);
       next = updateSeq(next, seq.id, (s) => ({ ...s, signatureAtLastCompletion: sig }));
-      const deckIds = [...new Set(completedCardIds.map((id) => content.cardById[id]).filter((c) => c && c.kind === 'movement').map((c) => (c as { deckId: string }).deckId))];
-      const unlocks = findUnlocks(next, content, deckIds);
-      return {
-        ...next,
-        decksCompletedInSequence: [...new Set([...next.decksCompletedInSequence, ...deckIds])],
-        unlockedCardIds: [...new Set([...next.unlockedCardIds, ...unlocks.map((u) => u.cardId)])],
-        pendingUnlocks: [...next.pendingUnlocks, ...unlocks],
-        play: { ...next.play!, finished: true }
-      };
+      return { ...next, play: { ...next.play!, finished: true } };
     }
     case 'play/exit': {
       const play = state.play;
-      if (!play) return { ...state, play: null };
+      if (!play) return state;
       const seq = state.sequences.find((s) => s.id === play.sequenceId);
       if (!seq || play.finished) return { ...state, play: null };
       const pct = seq.slots.length ? Math.round((play.completedSlotIds.length / seq.slots.length) * 100) : 0;
       return { ...updateSeq(state, seq.id, (s) => ({ ...s, analytics: { ...s.analytics, completionPercents: [...s.analytics.completionPercents, pct] } })), play: null };
     }
-    case 'ui/dismissRewards':
-      return { ...state, pendingUnlocks: [], pendingChallengeIds: [] };
+
+    case 'ui/dismissReveal':
+      return { ...state, pendingReveals: state.pendingReveals.slice(1) };
+    case 'ui/dismissMilestones':
+      return { ...state, pendingMilestoneIds: [] };
     case 'ui/seenIntro':
       return { ...state, seenIntro: true };
     case 'theme/set':
       return state.unlockedThemeIds.includes(action.themeId) ? { ...state, themeId: action.themeId } : state;
-    case 'pack/install': {
-      if (state.installedPackIds.includes(action.packId)) return state;
-      const packs = [...state.installedPackIds, action.packId];
-      const c = buildContent(packs);
-      return {
-        ...state,
-        installedPackIds: packs,
-        unlockedCardIds: [...new Set([...state.unlockedCardIds, ...c.movementCards.filter((m) => m.unlockedByDefault).map((m) => m.id)])],
-        unlockedThemeIds: [...new Set([...state.unlockedThemeIds, ...c.themes.filter((t) => t.unlockedByDefault).map((t) => t.id)])]
-      };
-    }
-    case 'pack/uninstall': {
-      if (action.packId === 'core') return state;
-      const packs = state.installedPackIds.filter((p) => p !== action.packId);
-      const c = buildContent(packs);
-      const ids = new Set(c.cards.map((x) => x.id));
-      return {
-        ...state,
-        installedPackIds: packs,
-        draftSlots: state.draftSlots.filter((s) => ids.has(s.cardId)).map((s) => ({ ...s, modifiers: s.modifiers.filter((m) => ids.has(m)) })),
-        themeId: c.themes.some((t) => t.id === state.themeId) ? state.themeId : DEFAULT_THEME,
-        play: null
-      };
+    case 'studio/name':
+      return { ...state, studioName: action.name };
+    case 'studio/decor': {
+      const variant = DECOR.find((d) => d.slot === action.slot)?.variants.find((v) => v.id === action.variant);
+      if (!variant || !decorOpen(variant.unlock, state, content)) return state;
+      return { ...state, decor: { ...state.decor, [action.slot]: action.variant } };
     }
     case 'game/reset':
       return { ...freshState(), seenIntro: true };

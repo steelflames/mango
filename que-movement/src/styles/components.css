@@ -140,7 +140,7 @@
 .tag--progression { background: var(--kind-progression); }
 
 /* ---------- art ---------- */
-.card-art { display: block; width: 100%; height: 100%; background: var(--paper-card); }
+.card-art { display: block; width: 100%; height: 100%; background: var(--paper-card); pointer-events: none; }
 .card-art.is-dim { opacity: 0.55; filter: saturate(0.4); }
 .mosaic {
   display: grid;

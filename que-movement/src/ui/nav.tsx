@@ -1,37 +1,33 @@
 import { createContext, useContext } from 'react';
 
-export type SectionId = 'map' | 'library' | 'builder' | 'play' | 'challenges' | 'community' | 'studio';
+export type SectionId = 'technique' | 'repertoire' | 'play' | 'queue' | 'studio';
 
 export const SECTIONS: { id: SectionId; label: string; glyph: string }[] = [
-  { id: 'map', label: 'Q Map', glyph: '✧' },
-  { id: 'library', label: 'Decks', glyph: '❋' },
-  { id: 'builder', label: 'Builder', glyph: '⌘' },
+  { id: 'technique', label: 'Technique', glyph: '✧' },
+  { id: 'repertoire', label: 'Repertoire', glyph: '❋' },
   { id: 'play', label: 'Play', glyph: '▷' },
-  { id: 'challenges', label: 'Challenges', glyph: '◈' },
-  { id: 'community', label: 'Community', glyph: '❀' },
-  { id: 'studio', label: 'My Studio', glyph: '☾' }
+  { id: 'queue', label: 'In the Queue', glyph: '❀' },
+  { id: 'studio', label: 'Studio', glyph: '⌂' }
 ];
 
 export interface BuilderView {
-  /** 'all' | a deck id | 'transition' | 'progression' */
+  /** 'primary' | a deck id | 'all' | 'transition' | 'progression' | 'archive' */
   coll: string;
   query: string;
   level: 'all' | 'foundation' | 'working' | 'challenge';
-  sortBy: 'deck' | 'level' | 'position' | 'time' | 'az';
+  sortBy: 'path' | 'level' | 'position' | 'time' | 'az';
   sortDir: 1 | -1;
   view: 'grid' | 'list';
   selectedSlotId: string | null;
 }
 
-export const DEFAULT_BUILDER_VIEW: BuilderView = { coll: 'all', query: '', level: 'all', sortBy: 'deck', sortDir: 1, view: 'grid', selectedSlotId: null };
+export const DEFAULT_BUILDER_VIEW: BuilderView = { coll: 'primary', query: '', level: 'all', sortBy: 'path', sortDir: 1, view: 'grid', selectedSlotId: null };
 
 interface Nav {
   section: SectionId;
   go: (id: SectionId) => void;
   builder: BuilderView;
   setBuilder: (patch: Partial<BuilderView>) => void;
-  deckFocus: string | null;
-  setDeckFocus: (id: string | null) => void;
 }
 
 export const NavContext = createContext<Nav | null>(null);

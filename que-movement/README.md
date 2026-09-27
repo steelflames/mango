@@ -1,8 +1,10 @@
-# Q Movement
+# Que Movement
 
-*Move · Learn · Teach · Belong.* A Pilates programming game: build short sequences from illustrated cue cards, play them through, and open new ways into each movement through practice.
+*Build your movement vocabulary. Shape it into something worth performing.*
 
-React 18 + Vite + TypeScript, plain CSS, `localStorage`. No backend, no login, no payments. Landscape tablets first (10–13"), with mouse, touch, keyboard and Xbox controller all first-class.
+A cozy movement-programming deck builder. Learn Techniques, collect Qcards, build them into Sequences, perform those Sequences in Play Mode, and spend what you earn on deeper Techniques while your Studio grows around you.
+
+React 18 + Vite + TypeScript, plain CSS, `localStorage`. No backend, no login. Landscape tablets first, with mouse, touch, keyboard and Xbox controller all first-class.
 
 ## Run it
 
@@ -13,38 +15,44 @@ npm run build        # Vercel-ready static site in dist/
 npm run build:single # one self-contained HTML file in dist-single/
 ```
 
-Vercel: import the folder (it picks up `vercel.json`: `npm run build` → `dist`), or drop the built `dist/` folder straight onto a static deploy.
+## The loop
+
+**Learn → Collect → Build → Play → Earn → Unlock → Share.** The top bar always shows the next step.
+
+| Section | What it is |
+|---|---|
+| **Technique** | The skill tree. One branch for now, Mat Fundamentals: Breath, then Bridging, Core and Shoulders paths (18 Techniques). A Technique opens when you know its parent, have *performed* a parent in a Sequence, and can pay its cost. Learning it creates its Qcard. |
+| **Repertoire** | The workspace. Decks (one is primary; new Qcards are offered there first), All Qcards, Transitions, Progressions, Archive. Tap a Qcard to add it to the Sequence, or drag it onto the Sequence, onto a step (progressions) or onto a deck. Archive keeps cards out of the way without losing them. |
+| **Play** | A Sequence card by card, each dealt in with the Qcard alive. Completing cards earns points (Foundation 10, Working 15, Challenge 20, transitions and progressions 5, plus a streak bonus). |
+| **In the Queue** | A vertical, snap-scrolling feed of community Sequences that play themselves through. Save, try, or remix into your Repertoire. The feed is simulated on this device. |
+| **Studio** | An isometric room: badges on the shelf, path mastery on the wall, your pinned Sequence on the class board. Walls, floor, rug, mat, equipment, plant, light and props unlock through badges, Techniques and points. |
 
 ## How it's put together
 
 ```
 src/
-  content/          everything the game knows about — plain data
-    packs/core.ts     Bridging, Scapula, Core: decks, cards, challenges, skins, Q Map regions
-    packs/balance.ts  Balance & Longevity expansion
-    catalog.ts        rules (500-point cap, 12 steps, 2 progressions per card), expansions, badges
-    content.ts        merges installed packs into one Content object
-    seeds.ts          the sample community feed
-  game/             the rules, independent of any screen
-    rules.ts          points, streak bonus, doses, seams, challenges, unlocks
-    reducer.ts        every game action; saves to localStorage (q-movement:v2, migrates v1)
-    store.tsx         React context around the reducer
-  input/            one input system for mouse, touch, keys and controller
-    InputProvider.tsx last-input-wins mode, Settings pinning, gamepad polling, prompt bar labels
-    spatial.ts        geometric D-pad navigation — works on any screen with no per-screen wiring
-  ui/               frame and shared pieces: top bar, binder tabs, prompt bar, Settings,
-                    menus/sheets/dialogs, the playing card, rewards, intro
-  screens/          Q Map · Decks · Builder · Play · Challenges · Community · My Studio
-    builder/          the music-library builder: Sidebar, Library (grid/list), Queue
-  styles/           tokens.css (palette + derived colours), shell, components, screens
+  content/            everything the game knows about, as plain data
+    mat.ts              paths, Qcards and the Mat Fundamentals Technique tree
+    catalog.ts          rules, badges, milestones (what earns each badge), skins
+    studio.ts           Studio decor slots, variants, unlock conditions, titles
+    seeds.ts            the sample In the Queue feed
+    content.ts          indexes it all into one Content object
+  game/               the rules, independent of any screen
+    rules.ts            points, doses, seams, Technique status, milestones, decor, the next step
+    reducer.ts          every game action; saves to localStorage (que-movement:v4)
+    store.tsx           React context around the reducer
+  input/              one input system for mouse, touch, keys and controller
+  ui/                 frame and shared pieces: top bar + loop guide, tabs, Settings,
+    art/                Qcard line art with two poses each; live cards breathe between them (SMIL)
+    studio/Diorama.tsx  the isometric room, drawn from boxes and planes in SVG
+  screens/            Technique · Repertoire · Play · In the Queue · Studio
+    repertoire/         Sidebar (decks, collection, Sequences), Library, SequencePanel, drag.tsx
+  styles/             tokens, shell, components, screens, que.css (tree, reels, Studio, motion)
 ```
 
-### Adding a pack
+### Adding a Technique branch
 
-1. Add `src/content/packs/<name>.ts` exporting a `Pack` (decks, movement cards, transitions/progressions, challenges, skins, regions).
-2. Add it to `PACKS` in `content.ts` and give it an entry in `expansions` in `catalog.ts`.
-
-It then shows up everywhere: the Decks hand, the Builder library, the Q Map, Challenges and My Studio. Art keys live in `ui/art/shapes.ts`.
+Add Qcards and a `Branch` of `TechniqueNode`s (id, cardId, pathId, x/y on the tree, cost, requires) in a file like `content/mat.ts`, and draw each card's two poses in `ui/art/shapes.ts`. Every command in a pose's second path must match the first so the drawing can move between them.
 
 ### Controls
 
@@ -55,12 +63,9 @@ It then shows up everywhere: the Decks hand, the Builder library, the Q Map, Cha
 | Back, close | ✕ or tap outside | Esc / Backspace | B |
 | Card or step options | ⋯ | X | X |
 | Screen's main action | the big button | Y | Y |
-| Sections | binder tabs | Q / E, 1–7 | LB / RB |
-| Sub-tabs (collections, filters) | chips | [ / ] | LT / RT |
+| Sections | tabs | Q / E, 1–5 | LB / RB |
+| Sub-tabs, collections, reels | chips | [ / ] | LT / RT |
+| Drag a Qcard | drag (touch: press and hold) | — | — |
 | Settings | top right | Esc at top level | ☰ |
 
-Settings › Controls can pin Mouse, Touch or Controller; Automatic follows whatever was used last. Play's timer pauses whenever a menu, sheet or Settings is open.
-
-### Game rules (unchanged from the original)
-
-Foundation 10 pts · Working 15 · Challenge 20 · transitions and progressions 5. Streak bonus +2 for every three cards in a row inside the sequence (up to +10). Only the first 500 points count toward progression. Working opens after Foundation is practised and the deck is completed in a sequence; Challenge after Working is practised and its deck challenge is done. Skins are cosmetic only.
+Settings › Motion turns off card motion; the device's reduced-motion setting is honoured by default.

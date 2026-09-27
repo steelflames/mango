@@ -17,7 +17,7 @@ export function SkinPicker() {
               {['--paper', '--forest', '--aubergine', '--gold'].map((v) => <i key={v} style={{ background: t.vars[v] }} />)}
             </span>
             <span className="skin__name">{on && <span aria-hidden="true">✓ </span>}{t.name}</span>
-            <span className="skin__desc">{open ? t.description : `Earned with the ${content.challenges.find((c) => c.reward.themeId === t.id)?.name ?? 'a'} challenge`}</span>
+            <span className="skin__desc">{open ? t.description : `Earned with the ${content.milestones.find((m) => m.reward.themeId === t.id)?.name ?? 'a'} badge`}</span>
           </button>
         );
       })}
