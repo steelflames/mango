@@ -1,0 +1,161 @@
+/* ------------------------------------------------------------------
+   Q Movement design tokens.
+   Skins set the base colours on :root (see useTheme). Everything else
+   is derived here, so a new skin only has to supply its palette.
+------------------------------------------------------------------- */
+:root {
+  --paper: #f5eedf;
+  --paper-deep: #ebe1cc;
+  --paper-card: #fbf6ea;
+  --ink: #2b2a24;
+  --ink-soft: #6b6455;
+  --ink-faint: #9a9280;
+  --line: #c9bca0;
+  --forest: #2f4a3c;
+  --sage: #8ca189;
+  --dusty-blue: #5f7c93;
+  --aubergine: #5a3550;
+  --gold: #b48a3e;
+  --gold-soft: #dcc489;
+  --wash-a: rgba(140, 161, 137, 0.3);
+  --wash-b: rgba(95, 124, 147, 0.24);
+  --wash-c: rgba(180, 138, 62, 0.2);
+  --rail: #f0e7d4;
+  --shadow: rgba(63, 52, 32, 0.2);
+  --glow: rgba(180, 138, 62, 0.55);
+  --grain-opacity: 0.32;
+
+  /* derived */
+  --desk: color-mix(in srgb, var(--paper-deep) 52%, var(--line));
+  --gold-ink: color-mix(in srgb, var(--gold) 62%, var(--ink));
+  --ink-desk: color-mix(in srgb, var(--ink-soft) 62%, var(--ink));
+  --scrim: color-mix(in srgb, var(--ink) 34%, transparent);
+  --level-foundation: color-mix(in srgb, var(--forest) 88%, var(--ink));
+  --level-working: color-mix(in srgb, var(--dusty-blue) 66%, var(--ink));
+  --level-challenge: color-mix(in srgb, var(--aubergine) 88%, var(--ink));
+  --kind-transition: color-mix(in srgb, var(--dusty-blue) 62%, var(--ink));
+  --kind-progression: color-mix(in srgb, var(--aubergine) 70%, var(--ink));
+  --on-accent: var(--paper);
+  --ring: var(--gold-ink);
+
+  /* controller glyphs keep their familiar colours in every skin */
+  --pad-a: #3d6b47;
+  --pad-b: #a34a3a;
+  --pad-x: #45627e;
+  --pad-y: #c9a55a;
+
+  --font-display: 'Cormorant Garamond', 'Iowan Old Style', Georgia, serif;
+  --font-body: 'Karla', 'Avenir Next', 'Segoe UI', system-ui, sans-serif;
+  --radius: 14px;
+  --radius-lg: 20px;
+  --tap: 44px;
+  --ease: cubic-bezier(0.22, 0.61, 0.36, 1);
+  --topbar-h: 72px;
+  --bar-h: 68px;
+  --tabs-w: 176px;
+  color-scheme: light;
+}
+:root[data-theme='witchy-autumn'] { color-scheme: dark; }
+
+*, *::before, *::after { box-sizing: border-box; }
+html, body, #root { height: 100%; }
+body {
+  margin: 0;
+  background: var(--desk);
+  color: var(--ink);
+  font-family: var(--font-body);
+  font-size: 15px;
+  line-height: 1.5;
+  font-variant-numeric: lining-nums;
+  -webkit-font-smoothing: antialiased;
+  overscroll-behavior: none;
+  overflow: hidden;
+  -webkit-tap-highlight-color: transparent;
+  touch-action: manipulation;
+}
+/* paper grain and a soft vignette, as in the original field guide */
+body::before {
+  content: '';
+  position: fixed;
+  inset: 0;
+  pointer-events: none;
+  z-index: 0;
+  opacity: var(--grain-opacity);
+  mix-blend-mode: multiply;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='220' height='220'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.85' numOctaves='3' stitchTiles='stitch'/%3E%3CfeColorMatrix type='saturate' values='0'/%3E%3C/filter%3E%3Crect width='220' height='220' filter='url(%23n)' opacity='0.45'/%3E%3C/svg%3E");
+}
+:root[data-theme='witchy-autumn'] body::before { mix-blend-mode: screen; }
+body::after {
+  content: '';
+  position: fixed;
+  inset: 0;
+  pointer-events: none;
+  z-index: 0;
+  background: radial-gradient(ellipse at 50% 30%, transparent 55%, var(--shadow) 140%);
+  opacity: 0.5;
+}
+h1, h2, h3, h4 { font-family: var(--font-display); font-weight: 600; margin: 0; letter-spacing: 0.01em; font-variant-numeric: lining-nums; }
+/* Cormorant's old-style figures read as letters ("IO"); numbers always use lining figures */
+.timer__time, .points-pop, .done-stats dd, .stat-tile__v { font-variant-numeric: lining-nums tabular-nums; }
+p { margin: 0; }
+button, input, select, textarea { font: inherit; color: inherit; }
+button { cursor: pointer; }
+button:disabled, [aria-disabled='true'] { cursor: default; }
+::selection { background: color-mix(in srgb, var(--gold) 35%, transparent); }
+
+.app { -webkit-user-select: none; user-select: none; }
+input, textarea { -webkit-user-select: text; user-select: text; }
+
+.eyebrow {
+  font-size: 12px;
+  font-weight: 700;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--gold-ink);
+}
+.muted { color: var(--ink-soft); }
+.sr-only {
+  position: absolute !important;
+  width: 1px; height: 1px;
+  overflow: hidden;
+  clip: rect(0 0 0 0);
+  white-space: nowrap;
+}
+.scroll {
+  overflow-y: auto;
+  scrollbar-width: thin;
+  scrollbar-color: var(--line) transparent;
+  overscroll-behavior: contain;
+  /* room for the controller ring inside scroll boxes */
+  padding: 6px;
+  margin: -6px;
+}
+
+/* ---------- focus: a gold ring for keys and controllers, nothing for mouse and touch ---------- */
+:focus { outline: none; }
+:focus-visible { outline: 3px solid var(--ring); outline-offset: 3px; }
+html[data-input='pad'] :focus {
+  outline: 3px solid var(--ring);
+  outline-offset: 3px;
+  box-shadow: 0 0 22px 2px var(--glow);
+}
+html[data-input='pad'] input:focus { outline-offset: 2px; }
+html[data-input='mouse'] :focus:not(:focus-visible),
+html[data-input='touch'] :focus:not(:focus-visible) { outline: none; box-shadow: none; }
+
+/* ---------- motion ---------- */
+@media (prefers-reduced-motion: reduce) {
+  html[data-motion='device'] *, html[data-motion='device'] *::before, html[data-motion='device'] *::after {
+    transition-duration: 0.001ms !important;
+    animation-duration: 0.001ms !important;
+    animation-iteration-count: 1 !important;
+  }
+}
+html[data-motion='reduce'] *, html[data-motion='reduce'] *::before, html[data-motion='reduce'] *::after {
+  transition-duration: 0.001ms !important;
+  animation-duration: 0.001ms !important;
+  animation-iteration-count: 1 !important;
+}
+@keyframes rise-in { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: none; } }
+@keyframes fade-in { from { opacity: 0; } to { opacity: 1; } }
+@keyframes pop { 0% { transform: scale(0.94); opacity: 0; } 60% { transform: scale(1.02); opacity: 1; } 100% { transform: scale(1); } }
