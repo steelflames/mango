@@ -7,6 +7,7 @@ import './styles/shell.css';
 import './styles/components.css';
 import './styles/screens.css';
 import './styles/que.css';
+import './styles/night.css';
 
 createRoot(document.getElementById('root')!).render(
   <StrictMode>

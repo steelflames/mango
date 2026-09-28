@@ -44,13 +44,12 @@
   --pad-x: #45627e;
   --pad-y: #c9a55a;
 
-  --font-display: 'Cormorant Garamond', 'Iowan Old Style', Georgia, serif;
-  --font-body: 'Karla', 'Avenir Next', 'Segoe UI', system-ui, sans-serif;
+  --font-display: 'Fraunces', 'Iowan Old Style', Georgia, serif;
+  --font-body: 'Figtree', 'Avenir Next', 'Segoe UI', system-ui, sans-serif;
   --radius: 14px;
   --radius-lg: 20px;
   --tap: 44px;
   --ease: cubic-bezier(0.22, 0.61, 0.36, 1);
-  --topbar-h: 72px;
   --bar-h: 68px;
   --tabs-w: 176px;
   color-scheme: light;
@@ -94,8 +93,10 @@ body::after {
   background: radial-gradient(ellipse at 50% 30%, transparent 55%, var(--shadow) 140%);
   opacity: 0.5;
 }
-h1, h2, h3, h4 { font-family: var(--font-display); font-weight: 600; margin: 0; letter-spacing: 0.01em; font-variant-numeric: lining-nums; }
-/* Cormorant's old-style figures read as letters ("IO"); numbers always use lining figures */
+h1, h2, h3, h4 { font-family: var(--font-display); font-weight: 560; margin: 0; letter-spacing: -0.005em; font-variant-numeric: lining-nums; font-variation-settings: 'SOFT' 100, 'WONK' 0; font-optical-sizing: auto; }
+/* Fraunces, soft and a little wonky in italics: whimsy that still reads as grown-up */
+[class*='__cue'], [class*='__note'], .brand__q, .big-card__q, .flip__back span { font-variation-settings: 'SOFT' 100, 'WONK' 1; }
+/* numbers always use lining figures */
 .timer__time, .points-pop, .done-stats dd, .stat-tile__v { font-variant-numeric: lining-nums tabular-nums; }
 p { margin: 0; }
 button, input, select, textarea { font: inherit; color: inherit; }

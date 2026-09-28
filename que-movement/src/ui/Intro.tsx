@@ -17,13 +17,13 @@ export function Intro() {
         <CardArt art="breathing" kind="movement" accent="var(--aubergine)" live />
         <CardArt art="scapular-glide" kind="movement" accent="var(--dusty-blue)" live />
       </div>
-      <p className="eyebrow">Move · Learn · Teach · Belong</p>
+      <p className="eyebrow">The night market is open</p>
       <h2 className="intro__title">Welcome to Que Movement</h2>
       <ol className="intro__steps">
-        <li><strong>Learn Techniques.</strong> Each one you learn becomes a Qcard. You start knowing four.</li>
-        <li><strong>Build a Sequence</strong> in your Repertoire: pick the order, bridge the changes of position.</li>
-        <li><strong>Perform it in Play.</strong> Every card you complete earns points.</li>
-        <li><strong>Spend points</strong> on deeper Techniques, and grow your Studio as you go.</li>
+        <li><strong>Learn Techniques.</strong> Each one lights a lantern and becomes a Qcard. You start knowing four.</li>
+        <li><strong>Build a Sequence</strong> in your Repertoire. The teachers’ seven Harmonies light up as you get the order right.</li>
+        <li><strong>Perform it.</strong> Cards stack like a winning hand; Harmonies pay out at the end.</li>
+        <li><strong>Grow.</strong> Spend points on deeper Techniques, rise in Rank, open your Studio to the market.</li>
       </ol>
       <p className="intro__input">
         {mode === 'pad'

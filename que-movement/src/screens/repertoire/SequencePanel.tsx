@@ -2,7 +2,7 @@ import { Fragment, useEffect, useRef, useState, type PointerEvent as RPointerEve
 import { RULES } from '../../content/catalog';
 import { POSITION_LABEL } from '../../content/content';
 import type { Card } from '../../content/types';
-import { clock, mixLabel, readSeams, sequenceStats, transitionsFor, type Seam, type SlotView } from '../../game/rules';
+import { clock, readSeams, sequenceStats, transitionsFor, type Seam, type SlotView } from '../../game/rules';
 import { useStore } from '../../game/store';
 import { focusEl, useBack, useDirections, useInput } from '../../input/InputProvider';
 import { Art } from '../../ui/Cards';
@@ -11,6 +11,7 @@ import { useNav } from '../../ui/nav';
 import { useOverlays, type MenuItem } from '../../ui/Overlays';
 import { useDraft } from '../../ui/useDraft';
 import { useCardDrag } from './drag';
+import { ClassArc, HarmonyRow, TeacherNote } from '../../ui/Harmonies';
 import { MoreIcon } from './Library';
 
 function GripIcon() {
@@ -29,7 +30,7 @@ export function SequencePanel() {
   const draft = useDraft();
   const slots = state.draftSlots;
   const stats = sequenceStats(slots, content);
-  const { seams, transitionStatus, openSeams, route } = readSeams(slots, content);
+  const { seams, transitionStatus, route } = readSeams(slots, content);
   const listRef = useRef<HTMLOListElement>(null);
   const headMore = useRef<HTMLButtonElement>(null);
   const [moving, setMoving] = useState<{ slotId: string; from: number } | null>(null);
@@ -141,7 +142,6 @@ export function SequencePanel() {
 
   const start = () => { if (slots.length) dispatch({ type: 'sequence/saveAndStart' }); };
   const seamBefore = new Map<number, Seam>(seams.filter((s) => s.status === 'open').map((s) => [s.index, s]));
-  const pct = (n: number) => `${(n / RULES.maxSteps) * 100}%`;
 
   return (
     <aside className="queue" aria-label="Your sequence">
@@ -155,13 +155,8 @@ export function SequencePanel() {
       </label>
       <div className="queue__stats">
         <div className="queue__nums"><span><strong>{slots.length}</strong> of {RULES.maxSteps} steps</span><span><strong>{clock(stats.durationSeconds)}</strong> total</span></div>
-        <div className="mixbar" aria-hidden="true">
-          <span className="mixbar__f" style={{ width: pct(stats.mix.foundation) }} />
-          <span className="mixbar__w" style={{ width: pct(stats.mix.working) }} />
-          <span className="mixbar__c" style={{ width: pct(stats.mix.challenge) }} />
-          <span className="mixbar__s" style={{ width: pct(stats.transitionCount) }} />
-        </div>
-        <p className="queue__mix">{mixLabel(stats.mix)}{stats.transitionCount ? ` · ${stats.transitionCount} transition${stats.transitionCount > 1 ? 's' : ''}` : ''}{stats.progressionCount ? ` · ${stats.progressionCount} progression${stats.progressionCount > 1 ? 's' : ''}` : ''}</p>
+        <ClassArc slots={slots} />
+        <HarmonyRow slots={slots} />
       </div>
 
       <ol ref={listRef} className={`queue__list scroll ${drag?.active ? 'is-dragging' : ''} ${cardDrag ? 'is-drop-target' : ''} ${cardDrag?.target && cardDrag.target.kind !== 'deck' ? 'is-over' : ''}`} data-drop-queue="">
@@ -231,13 +226,7 @@ export function SequencePanel() {
         {route.length > 1 && slots.length > 0 && (
           <p className="queue__route"><span className="eyebrow">Route</span> {route.map((p) => POSITION_LABEL[p]).join(' → ')}</p>
         )}
-        {slots.length > 0 && (
-          <p className="queue__flow">
-            {openSeams === 0
-              ? route.length > 1 ? 'Every change of position is bridged. Lovely flow.' : 'One position throughout. No transitions needed.'
-              : `${openSeams} position change${openSeams > 1 ? 's' : ''} with no transition. Playable as is, smoother with one.`}
-          </p>
-        )}
+        <TeacherNote slots={slots} />
         <div className="queue__actions">
           <button type="button" className="btn btn--ghost" aria-disabled={!slots.length || !draft.dirty || undefined} onClick={save} data-a={draft.dirty ? 'Save' : 'Saved'}>
             {slots.length && !draft.dirty ? 'Saved ✓' : 'Save'}

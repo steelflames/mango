@@ -1,3 +1,6 @@
+import type { GuestNote } from '../content/community';
+import type { IntentionEvent } from '../content/progress';
+
 export type ReactionKey = 'creative' | 'sweaty' | 'gentle' | 'educational';
 
 export interface Slot {
@@ -43,6 +46,9 @@ export interface PlayState {
   pointsEarned: number;
   startedAt: number;
   finished: boolean;
+  /** Harmonies met, paid out when the last card is completed. */
+  harmonyIds?: string[];
+  harmonyPoints?: number;
 }
 
 /** A player-made deck inside the Repertoire. */
@@ -89,6 +95,33 @@ export interface GameState {
   streak: number;
   play: PlayState | null;
   seenIntro: boolean;
+  /** Highest Practice Rank whose gift has been claimed. */
+  rankClaimed: number;
+  intentions: { day: string; ids: IntentionEvent[]; done: IntentionEvent[] };
+  /** The intention just completed, for a moment's ribbon. */
+  intentionFlash: IntentionEvent | null;
+  profile: { bio: string; mood: string; top8: string[] };
+  guestbook: GuestNote[];
+  /** Teacher standing: left by visitors to your Studio. */
+  kudos: number;
+  studioHours: { day: string; visits: number };
+  clients: Client[];
+  sent: SentPlan[];
+}
+
+export interface Client {
+  id: string;
+  name: string;
+  focus: string;
+}
+
+export interface SentPlan {
+  id: string;
+  clientId: string;
+  sequenceId: string;
+  sequenceName: string;
+  note: string;
+  at: number;
 }
 
 export type Action =
@@ -128,4 +161,14 @@ export type Action =
   | { type: 'theme/set'; themeId: string }
   | { type: 'studio/name'; name: string }
   | { type: 'studio/decor'; slot: DecorSlot; variant: string }
+  | { type: 'profile/bio'; bio: string }
+  | { type: 'profile/mood'; mood: string }
+  | { type: 'profile/top8'; creatorId: string }
+  | { type: 'studio/visit'; from: string; studio: string; text: string }
+  | { type: 'client/add'; id: string; name: string; focus: string }
+  | { type: 'client/remove'; id: string }
+  | { type: 'client/send'; clientId: string; sequenceId: string; note: string }
+  | { type: 'rank/claim' }
+  | { type: 'intentions/refresh' }
+  | { type: 'ui/dismissIntention' }
   | { type: 'game/reset' };

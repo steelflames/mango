@@ -27,12 +27,18 @@ interface CardBase {
   duration: number;
 }
 
+/** Where the spine is asked to go. The Council uses it for Counterpose. */
+export type Spine = 'neutral' | 'flexion' | 'extension' | 'rotation' | 'lateral';
+
 export interface MovementCard extends CardBase {
   kind: 'movement';
   pathId: string;
   level: Level;
   position: Position;
   dose: Dose;
+  spine: Spine;
+  /** 1 (asks nothing) to 5 (the peak of a class). Draws the class arc. */
+  intensity: number;
 }
 
 export interface TransitionCard extends CardBase {
@@ -86,6 +92,8 @@ export interface Milestone {
     minCards?: number;
     /** Every Technique on this path is known. */
     masterPath?: string;
+    /** Harmonies met in the performed Sequence. */
+    minHarmonies?: number;
   };
   reward: { points?: number; badgeId: string; themeId?: string };
 }

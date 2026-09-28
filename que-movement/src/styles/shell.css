@@ -250,7 +250,7 @@ html[data-input='pad'] .tab:focus { outline-offset: -3px; }
 
 /* ---------- tighter screens (10" tablets, small laptops) ---------- */
 @media (max-width: 1180px) {
-  :root { --tabs-w: 162px; --topbar-h: 64px; --bar-h: 62px; }
+  :root { --tabs-w: 162px; --bar-h: 62px; }
   .tabs { padding-right: 10px; }
   .tab { gap: 8px; padding: 0 8px 0 12px; font-size: 13px; }
   .brand__q { font-size: 34px; }
@@ -260,6 +260,6 @@ html[data-input='pad'] .tab:focus { outline-offset: -3px; }
   .prompt__label--wide { max-width: 150px; }
 }
 @media (max-height: 700px) {
-  :root { --topbar-h: 58px; --bar-h: 56px; }
+  :root { --bar-h: 56px; }
   .tab { height: 46px; min-height: 46px; }
 }

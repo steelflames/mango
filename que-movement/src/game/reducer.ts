@@ -1,17 +1,20 @@
 import { CONTENT } from '../content/content';
 import { RULES } from '../content/catalog';
 import { STARTER_TRANSITIONS } from '../content/mat';
+import { INTENTIONS, intentionsFor, rankGift, todayKey, type IntentionEvent } from '../content/progress';
 import { seedSequences } from '../content/seeds';
+import { VISITS_PER_DAY, WELCOME_NOTES, type GuestNote } from '../content/community';
 import { DECOR, DEFAULT_DECOR } from '../content/studio';
 import type { Content } from '../content/types';
 import {
-  addPoints, checkMilestones, decorOpen, editDistance, emptyAnalytics, newSlot, readNode,
+  addPoints, checkMilestones, decorOpen, editDistance, emptyAnalytics, newSlot, rankOf, readNode,
   signature, simulatedAudience, streakBonus, viewSlot
 } from './rules';
+import { harmonyPoints, readHarmonies } from './harmonies';
 import type { Action, GameState, Sequence } from './types';
 
 export const STORAGE_KEY = 'que-movement:v4';
-export const DEFAULT_THEME = 'watercolor-botanical';
+export const DEFAULT_THEME = 'night-market';
 export const PRIMARY_DECK = 'd-primary';
 
 export function freshState(): GameState {
@@ -41,8 +44,41 @@ export function freshState(): GameState {
     decor: { ...DEFAULT_DECOR },
     streak: 0,
     play: null,
-    seenIntro: false
+    seenIntro: false,
+    rankClaimed: 1,
+    intentions: freshIntentions(),
+    intentionFlash: null,
+    profile: { bio: '', mood: 'unhurried', top8: ['pip', 'wren'] },
+    guestbook: [...WELCOME_NOTES],
+    kudos: 0,
+    studioHours: { day: todayKey(), visits: 0 },
+    clients: [
+      { id: 'c-maya', name: 'Maya', focus: 'Lower back, desk job' },
+      { id: 'c-ruth', name: 'Ruth', focus: 'Balance and bone density' }
+    ],
+    sent: []
   };
+}
+
+function freshIntentions(): GameState['intentions'] {
+  const day = todayKey();
+  return { day, ids: intentionsFor(day), done: [] };
+}
+
+/** A new day brings three new intentions; yesterday's unfinished ones simply go. */
+function today(state: GameState): GameState {
+  return state.intentions.day === todayKey() ? state : { ...state, intentions: freshIntentions() };
+}
+
+/** Mark any of today's intentions these events complete, and pay them. */
+function intend(state: GameState, events: IntentionEvent[]): GameState {
+  let next = today(state);
+  for (const e of events) {
+    if (!next.intentions.ids.includes(e) || next.intentions.done.includes(e)) continue;
+    const def = INTENTIONS.find((x) => x.id === e);
+    next = { ...next, ...addPoints(next, def?.points ?? 0), intentions: { ...next.intentions, done: [...next.intentions.done, e] }, intentionFlash: e };
+  }
+  return next;
 }
 
 /** Load saved progress. Saves from Q Movement (before the Technique tree) start fresh. */
@@ -55,7 +91,7 @@ export function loadState(): GameState {
     const base = freshState();
     const sequences: Sequence[] = saved.sequences ?? [];
     const missingSeeds = base.sequences.filter((s) => !sequences.some((x) => x.id === s.id));
-    return { ...base, ...saved, decor: { ...base.decor, ...saved.decor }, sequences: [...sequences, ...missingSeeds] };
+    return today({ ...base, ...saved, decor: { ...base.decor, ...saved.decor }, sequences: [...sequences, ...missingSeeds] });
   } catch {
     return freshState();
   }
@@ -147,7 +183,7 @@ export function reduce(state: GameState, action: Action, content: Content = CONT
         id = seq.id;
         next = { ...state, sequences: [seq, ...state.sequences] };
       }
-      return checkMilestones({ ...next, draftSourceId: id, draftName: name }, { trigger: 'sequence-saved' }, content);
+      return intend(checkMilestones({ ...next, draftSourceId: id, draftName: name }, { trigger: 'sequence-saved' }, content), ['save']);
     }
     case 'sequence/saveAndStart': {
       const saved = reduce(state, { type: 'sequence/save' }, content);
@@ -202,7 +238,7 @@ export function reduce(state: GameState, action: Action, content: Content = CONT
         ownedCardIds: [...state.ownedCardIds, node.cardId],
         pendingReveals: [...state.pendingReveals, { cardId: node.cardId }]
       };
-      return checkMilestones(next, { trigger: 'technique' }, content);
+      return intend(checkMilestones(next, { trigger: 'technique' }, content), ['learn']);
     }
 
     case 'deck/create': {
@@ -270,13 +306,26 @@ export function reduce(state: GameState, action: Action, content: Content = CONT
       };
       const p = next.play!;
       if (p.completedSlotIds.length !== seq.slots.length) return next;
-      // The whole Sequence is done: record it and check milestones.
+      // The whole Sequence is done: the teachers score it, then record it and check milestones.
       const completedCardIds = seq.slots.flatMap((s) => [s.cardId, ...s.modifiers]);
+      const readings = readHarmonies(seq.slots, content, next.ownedCardIds);
+      const met = readings.filter((r) => r.status === 'met');
+      const bonus = harmonyPoints(readings);
+      next = { ...next, ...addPoints(next, bonus), play: { ...p, pointsEarned: p.pointsEarned + bonus, harmonyIds: met.map((r) => r.def.id), harmonyPoints: bonus } };
       next = updateSeq(next, seq.id, (s) => ({ ...s, analytics: { ...s.analytics, completedPlays: s.analytics.completedPlays + 1, completionPercents: [...s.analytics.completionPercents, 100] } }));
-      next = checkMilestones(next, { trigger: 'sequence-complete', completedCardIds }, content);
+      next = checkMilestones(next, { trigger: 'sequence-complete', completedCardIds, harmonies: met.length }, content);
       const sig = signature(seq.slots);
       if (seq.signatureAtLastCompletion && editDistance(seq.signatureAtLastCompletion, sig) >= 2) next = checkMilestones(next, { trigger: 'remix', completedCardIds }, content);
       next = updateSeq(next, seq.id, (s) => ({ ...s, signatureAtLastCompletion: sig }));
+      const metIds = met.map((r) => r.def.id);
+      const events: IntentionEvent[] = ['perform'];
+      if (met.length >= 3) events.push('harmony-3');
+      if (metIds.includes('counterpose')) events.push('counterpose');
+      if (metIds.includes('arrive') && metIds.includes('settle')) events.push('arrive-settle');
+      if (seq.slots.some((sl) => content.cardById[sl.cardId]?.kind === 'transition')) events.push('transition');
+      if (seq.slots.length >= 5) events.push('five-cards');
+      if (seq.seeded) events.push('queue-try');
+      next = intend(next, events);
       return { ...next, play: { ...next.play!, finished: true } };
     }
     case 'play/exit': {
@@ -301,8 +350,43 @@ export function reduce(state: GameState, action: Action, content: Content = CONT
     case 'studio/decor': {
       const variant = DECOR.find((d) => d.slot === action.slot)?.variants.find((v) => v.id === action.variant);
       if (!variant || !decorOpen(variant.unlock, state, content)) return state;
-      return { ...state, decor: { ...state.decor, [action.slot]: action.variant } };
+      return intend({ ...state, decor: { ...state.decor, [action.slot]: action.variant } }, ['studio']);
     }
+    case 'profile/bio':
+      return { ...state, profile: { ...state.profile, bio: action.bio } };
+    case 'profile/mood':
+      return { ...state, profile: { ...state.profile, mood: action.mood } };
+    case 'profile/top8': {
+      const t = state.profile.top8;
+      const top8 = t.includes(action.creatorId) ? t.filter((id) => id !== action.creatorId) : t.length >= 8 ? t : [...t, action.creatorId];
+      return { ...state, profile: { ...state.profile, top8 } };
+    }
+    case 'studio/visit': {
+      const hours = state.studioHours.day === todayKey() ? state.studioHours : { day: todayKey(), visits: 0 };
+      if (hours.visits >= VISITS_PER_DAY) return state;
+      const note: GuestNote = { id: `g-${Date.now().toString(36)}${Math.random().toString(36).slice(2, 5)}`, from: action.from, studio: action.studio, text: action.text, at: Date.now() };
+      return { ...state, kudos: state.kudos + 1, studioHours: { ...hours, visits: hours.visits + 1 }, guestbook: [note, ...state.guestbook].slice(0, 40) };
+    }
+    case 'client/add':
+      return { ...state, clients: [...state.clients, { id: action.id, name: action.name, focus: action.focus }] };
+    case 'client/remove':
+      return { ...state, clients: state.clients.filter((c) => c.id !== action.id) };
+    case 'client/send': {
+      const seq = state.sequences.find((s) => s.id === action.sequenceId);
+      if (!seq || !state.clients.some((c) => c.id === action.clientId)) return state;
+      const plan = { id: `p-${Date.now().toString(36)}`, clientId: action.clientId, sequenceId: seq.id, sequenceName: seq.name, note: action.note, at: Date.now() };
+      return intend({ ...state, sent: [plan, ...state.sent].slice(0, 60) }, ['send']);
+    }
+    case 'rank/claim': {
+      const { rank } = rankOf(state.lifetimePoints);
+      if (state.rankClaimed >= rank) return state;
+      const next = state.rankClaimed + 1;
+      return { ...state, ...addPoints(state, rankGift(next)), rankClaimed: next };
+    }
+    case 'intentions/refresh':
+      return today(state);
+    case 'ui/dismissIntention':
+      return { ...state, intentionFlash: null };
     case 'game/reset':
       return { ...freshState(), seenIntro: true };
     default:

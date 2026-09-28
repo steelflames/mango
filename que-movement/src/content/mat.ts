@@ -35,38 +35,38 @@ const mv = (c: Omit<MovementCard, 'kind' | 'points' | 'duration'>): MovementCard
 });
 
 export const movementCards: MovementCard[] = [
-  mv({ id: 'breathing', pathId: 'core', level: 'foundation', name: 'Supine Breathing', art: 'breathing', position: 'supine',
+  mv({ id: 'breathing', pathId: 'core', level: 'foundation', spine: 'neutral', intensity: 1, name: 'Supine Breathing', art: 'breathing', position: 'supine',
     dose: { kind: 'reps', reps: 6 }, shortCue: 'Breathe wide into the back of the ribs; let the exhale settle them home.', movementGoal: 'Lateral breath and a quiet, heavy ribcage' }),
 
-  mv({ id: 'bridge', pathId: 'bridging', level: 'foundation', name: 'Bridge', art: 'bridge', position: 'supine',
+  mv({ id: 'bridge', pathId: 'bridging', level: 'foundation', spine: 'extension', intensity: 2, name: 'Bridge', art: 'bridge', position: 'supine',
     dose: { kind: 'reps', reps: 8 }, shortCue: 'Reach the knees away and lift from the backs of the legs.', movementGoal: 'Hip extension and trunk organisation' }),
-  mv({ id: 'bridge-march', pathId: 'bridging', level: 'working', name: 'Bridge March', art: 'bridge-march', position: 'supine',
+  mv({ id: 'bridge-march', pathId: 'bridging', level: 'working', spine: 'extension', intensity: 3, name: 'Bridge March', art: 'bridge-march', position: 'supine',
     dose: { kind: 'reps', reps: 6, perSide: true }, shortCue: 'Keep the pelvis level as one foot quietly floats.', movementGoal: 'Pelvic stability under changing load' }),
-  mv({ id: 'clam', pathId: 'bridging', level: 'foundation', name: 'Side-Lying Clam', art: 'clam', position: 'side-lying',
+  mv({ id: 'clam', pathId: 'bridging', level: 'foundation', spine: 'neutral', intensity: 2, name: 'Side-Lying Clam', art: 'clam', position: 'side-lying',
     dose: { kind: 'reps', reps: 10, perSide: true }, shortCue: 'Feet stay together; the top knee opens like a book.', movementGoal: 'Hip rotation with a still pelvis' }),
-  mv({ id: 'single-leg-bridge', pathId: 'bridging', level: 'challenge', name: 'Single-Leg Bridge', art: 'single-leg-bridge', position: 'supine',
+  mv({ id: 'single-leg-bridge', pathId: 'bridging', level: 'challenge', spine: 'extension', intensity: 4, name: 'Single-Leg Bridge', art: 'single-leg-bridge', position: 'supine',
     dose: { kind: 'reps', reps: 5, perSide: true }, shortCue: 'Lift from the standing leg without letting the opposite hip drop.', movementGoal: 'Single-leg hip extension with control' }),
 
-  mv({ id: 'dead-bug', pathId: 'core', level: 'foundation', name: 'Dead Bug', art: 'dead-bug', position: 'supine',
+  mv({ id: 'dead-bug', pathId: 'core', level: 'foundation', spine: 'neutral', intensity: 2, name: 'Dead Bug', art: 'dead-bug', position: 'supine',
     dose: { kind: 'reps', reps: 6, perSide: true }, shortCue: 'Keep the ribs heavy as the opposite arm and leg travel away.', movementGoal: 'Rib and pelvis connection' }),
-  mv({ id: 'toe-taps', pathId: 'core', level: 'foundation', name: 'Toe Taps', art: 'toe-taps', position: 'supine',
+  mv({ id: 'toe-taps', pathId: 'core', level: 'foundation', spine: 'neutral', intensity: 2, name: 'Toe Taps', art: 'toe-taps', position: 'supine',
     dose: { kind: 'reps', reps: 8, perSide: true }, shortCue: 'From tabletop, lower one foot to kiss the mat. The back stays quiet.', movementGoal: 'Hip dissociation from a steady centre' }),
-  mv({ id: 'hundred-prep', pathId: 'core', level: 'working', name: 'Hundred Preparation', art: 'hundred-prep', position: 'supine',
+  mv({ id: 'hundred-prep', pathId: 'core', level: 'working', spine: 'flexion', intensity: 3, name: 'Hundred Preparation', art: 'hundred-prep', position: 'supine',
     dose: { kind: 'hold', seconds: 40 }, shortCue: 'Curl to the tips of the shoulder blades and pulse the arms with the breath.', movementGoal: 'Sustained flexion with breath' }),
-  mv({ id: 'roll-up', pathId: 'core', level: 'working', name: 'Roll Up', art: 'roll-up', position: 'supine',
+  mv({ id: 'roll-up', pathId: 'core', level: 'working', spine: 'flexion', intensity: 4, name: 'Roll Up', art: 'roll-up', position: 'supine',
     dose: { kind: 'reps', reps: 5 }, shortCue: 'Peel up one bone at a time, reach past the feet, then roll home.', movementGoal: 'Spinal articulation in flexion' }),
-  mv({ id: 'teaser-prep', pathId: 'core', level: 'challenge', name: 'Teaser Preparation', art: 'teaser-prep', position: 'supine',
+  mv({ id: 'teaser-prep', pathId: 'core', level: 'challenge', spine: 'flexion', intensity: 5, name: 'Teaser Preparation', art: 'teaser-prep', position: 'supine',
     dose: { kind: 'reps', reps: 5 }, shortCue: 'Roll through the spine and find the balance point behind the sit bones.', movementGoal: 'Articulated flexion and balance' }),
 
-  mv({ id: 'scapular-glide', pathId: 'shoulders', level: 'foundation', name: 'Scapular Glide', art: 'scapular-glide', position: 'seated',
+  mv({ id: 'scapular-glide', pathId: 'shoulders', level: 'foundation', spine: 'neutral', intensity: 1, name: 'Scapular Glide', art: 'scapular-glide', position: 'seated',
     dose: { kind: 'reps', reps: 10 }, shortCue: 'Let the shoulder blades slide wide, then gather them home.', movementGoal: 'Scapular mobility and awareness' }),
-  mv({ id: 'quad-press', pathId: 'shoulders', level: 'working', name: 'Quadruped Scapular Press', art: 'quad-press', position: 'quadruped',
+  mv({ id: 'quad-press', pathId: 'shoulders', level: 'working', spine: 'neutral', intensity: 3, name: 'Quadruped Scapular Press', art: 'quad-press', position: 'quadruped',
     dose: { kind: 'reps', reps: 8 }, shortCue: 'Press the floor away, then melt a little between the arms.', movementGoal: 'Serratus control in weight bearing' }),
-  mv({ id: 'bird-dog', pathId: 'shoulders', level: 'working', name: 'Bird Dog', art: 'bird-dog', position: 'quadruped',
+  mv({ id: 'bird-dog', pathId: 'shoulders', level: 'working', spine: 'neutral', intensity: 3, name: 'Bird Dog', art: 'bird-dog', position: 'quadruped',
     dose: { kind: 'reps', reps: 6, perSide: true }, shortCue: 'Reach long through opposite hand and heel. The water glass on your back stays full.', movementGoal: 'Cross-body stability on a narrow base' }),
-  mv({ id: 'swan-prep', pathId: 'shoulders', level: 'working', name: 'Swan Preparation', art: 'swan-prep', position: 'prone',
+  mv({ id: 'swan-prep', pathId: 'shoulders', level: 'working', spine: 'extension', intensity: 3, name: 'Swan Preparation', art: 'swan-prep', position: 'prone',
     dose: { kind: 'reps', reps: 6 }, shortCue: 'Slide the shoulder blades down and let the chest glide forward and up.', movementGoal: 'Upper-back extension without pinching' }),
-  mv({ id: 'plank-control', pathId: 'shoulders', level: 'challenge', name: 'Plank Scapular Control', art: 'plank-control', position: 'prone',
+  mv({ id: 'plank-control', pathId: 'shoulders', level: 'challenge', spine: 'neutral', intensity: 4, name: 'Plank Scapular Control', art: 'plank-control', position: 'prone',
     dose: { kind: 'hold', seconds: 30 }, shortCue: 'Hold the plank while the shoulder blades stay wide and quiet.', movementGoal: 'Scapular stability under full load' })
 ];
 

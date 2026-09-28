@@ -9,6 +9,7 @@ import { CardDetails } from '../../ui/CardDetails';
 import { useNav, type BuilderView } from '../../ui/nav';
 import { useOverlays, type MenuItem } from '../../ui/Overlays';
 import { useDraft } from '../../ui/useDraft';
+import { fly, sequenceLanding } from '../../ui/fly';
 import { useCardDrag } from './drag';
 import { collectionName, libraryGroups, resolveColl, SORTS } from './library';
 import { useDeckMenu } from './Sidebar';
@@ -203,8 +204,8 @@ function useTileAction(card: Card) {
   const target = card.kind === 'progression' ? draft.attachTarget() : undefined;
   const label = archived ? 'Details' : card.kind === 'progression' ? (target ? `Attach to ${content.cardById[target.cardId]?.name}` : 'Details') : draft.full ? 'Details' : 'Add to Sequence';
   const run = () => {
-    if (archived || (card.kind === 'progression' && !target) || (card.kind !== 'progression' && draft.full)) m.details();
-    else draft.add(card);
+    if (archived || (card.kind === 'progression' && !target) || (card.kind !== 'progression' && draft.full)) { m.details(); return false; }
+    return draft.add(card);
   };
   const inBuild = card.kind === 'progression'
     ? state.draftSlots.filter((s) => s.modifiers.includes(card.id)).length
@@ -217,14 +218,16 @@ function Tile({ card }: { card: Card }) {
   const t = useTileAction(card);
   const { bind, drag } = useCardDrag();
   const [hover, setHover] = useState(false);
+  const artRef = useRef<HTMLSpanElement>(null);
   const moreId = `tm-${card.id}`;
+  const tap = () => { if (t.run() && card.kind !== 'progression') fly(artRef.current, sequenceLanding()); };
   const meta = card.kind === 'movement' ? `${POSITION_LABEL[card.position]} · ${doseShort(card.dose)}` : card.kind === 'transition' ? `${POSITION_LABEL[card.from[0]]} ↔ ${POSITION_LABEL[card.to[0]]}` : card.effect;
   return (
     <div className={`tile tile--${card.kind} ${drag?.card.id === card.id ? 'is-lifted' : ''} ${t.archived ? 'is-archived' : ''}`} data-x={moreId} data-x-label="Qcard options"
       onPointerEnter={() => setHover(true)} onPointerLeave={() => setHover(false)}>
-      <button type="button" className="tile__main" onClick={t.run} {...(t.archived ? {} : bind(card))} onFocus={() => setHover(true)} onBlur={() => setHover(false)}
+      <button type="button" className="tile__main" onClick={tap} {...(t.archived ? {} : bind(card))} onFocus={() => setHover(true)} onBlur={() => setHover(false)}
         aria-label={`${cardAria(card)}${t.inBuild ? `, in your Sequence ${t.inBuild}×` : ''}`} data-a={t.label}>
-        <span className="tile__art">
+        <span className="tile__art" ref={artRef}>
           <Art card={card} content={content} live={hover} dim={t.archived} />
           <Tag card={card} className="tile__tag" />
           {t.practised > 0 && <span className="tile__count" title={`Performed ${t.practised}×`}>✓ {t.practised}</span>}

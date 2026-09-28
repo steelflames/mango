@@ -60,6 +60,17 @@ const FLOORS: Record<string, [string, string]> = { oak: ['#C99A63', '#B6874F'], 
 const MATS: Record<string, string> = { sage: '#8CA189', clay: '#C27B57', plum: '#7C4B6C' };
 const WOOD = '#B8875A';
 
+export interface Visitor {
+  id: string;
+  /** 0–1, a little variety in where they stand. */
+  jitter: number;
+  coat: string;
+  hair: string;
+  skin: string;
+  tote: string;
+  says: string;
+}
+
 export interface DioramaProps {
   decor: Record<DecorSlot, string>;
   badges: Badge[];
@@ -67,11 +78,15 @@ export interface DioramaProps {
   pinned: { name: string; cards: Card[] } | null;
   mastery: { name: string; accent: string; pct: number }[];
   studioName: string;
+  /** The market is dark outside: the window shows the night and the lamp does the work. */
+  night?: boolean;
+  open?: boolean;
+  visitors?: Visitor[];
 }
 
-export function Diorama({ decor, badges, earned, pinned, mastery, studioName }: DioramaProps) {
+export function Diorama({ decor, badges, earned, pinned, mastery, studioName, night = false, open = false, visitors = [] }: DioramaProps) {
   const wall = WALLS[decor.wall] ?? WALLS.linen;
-  const dark = decor.wall === 'dusk';
+  const dark = decor.wall === 'dusk' || night;
   const [floorA, floorB] = FLOORS[decor.floor] ?? FLOORS.oak;
   const mat = MATS[decor.mat] ?? MATS.sage;
   const glow = decor.lamp === 'candles' ? '#FFC873' : '#FFE3A6';
@@ -115,7 +130,15 @@ export function Diorama({ decor, badges, earned, pinned, mastery, studioName }: 
 
       {/* window on the left wall, and the light it throws */}
       <Poly p={[[0.03, 1.6, 2.2], [0.03, 4.6, 2.2], [0.03, 4.6, 5.9], [0.03, 1.6, 5.9]]} fill="#F7EFD8" stroke="#8A6A45" />
-      <Poly p={[[0.05, 1.8, 2.4], [0.05, 4.4, 2.4], [0.05, 4.4, 5.7], [0.05, 1.8, 5.7]]} fill={dark ? '#2E3A57' : '#CFE0E4'} />
+      <Poly p={[[0.05, 1.8, 2.4], [0.05, 4.4, 2.4], [0.05, 4.4, 5.7], [0.05, 1.8, 5.7]]} fill={dark ? '#262C55' : '#CFE0E4'} />
+      {dark && <OnLeftWall y={4.4} z={5.7}>
+        <circle cx={U * 2.05} cy={U * 0.55} r="7" fill="#F6E7C4" />
+        <circle cx={U * 2.05 + 3} cy={U * 0.55 - 2} r="6" fill="#262C55" />
+        {[[0.3, 0.3], [0.9, 0.7], [1.5, 0.25], [0.6, 1.2], [2.3, 1.1], [1.2, 1.5]].map(([x, y], i) => <circle key={i} cx={U * x} cy={U * y} r="0.9" fill="#FFF6E3" opacity="0.8" />)}
+        <path d={`M0 ${U * 2.2} Q${U * 1.3} ${U * 2.6} ${U * 2.6} ${U * 2.15}`} stroke="rgba(246,222,190,0.5)" strokeWidth="0.8" fill="none" />
+        {[0.3, 0.75, 1.2, 1.65, 2.1].map((x, i) => <circle key={`l${i}`} className="dio-farlantern" style={{ ['--i' as string]: i }} cx={U * x} cy={U * (2.28 + Math.sin((x / 2.6) * Math.PI) * 0.18)} r="2.6" fill="#F6B45E" />)}
+        <path d={`M0 ${U * 3.3} L${U * 0.5} ${U * 2.75} L${U * 1} ${U * 3.3} Z M${U * 1.3} ${U * 3.3} L${U * 1.9} ${U * 2.65} L${U * 2.6} ${U * 3.3} Z`} fill="#1B1F3F" />
+      </OnLeftWall>}
       <polyline points={pts([[0.06, 3.1, 2.4], [0.06, 3.1, 5.7]])} stroke="#8A6A45" strokeWidth="2.4" />
       <polyline points={pts([[0.06, 1.8, 4.05], [0.06, 4.4, 4.05]])} stroke="#8A6A45" strokeWidth="2.4" />
       <Poly p={[[0.05, 1.6, 2.2], [0.05, 4.6, 2.2], [0.5, 4.6, 2.1], [0.5, 1.6, 2.1]]} fill="#E8D8B8" />
@@ -142,7 +165,7 @@ export function Diorama({ decor, badges, earned, pinned, mastery, studioName }: 
             return (
               <g key={b.id} className={has ? 'dio-badge is-earned' : 'dio-badge'}>
                 <title>{`${b.name}${has ? '' : ' (not yet)'}`}</title>
-                <circle cx={cx} cy={cy} r="8.5" fill={has ? '#D8B35E' : 'none'} stroke={has ? '#8C6A2A' : dark ? '#8C93A8' : '#B9A98B'} strokeWidth="1.5" strokeDasharray={has ? undefined : '2 2'} />
+                <circle cx={cx} cy={cy} r="8.5" fill={has ? '#D8B35E' : 'none'} stroke={has ? '#8C6A2A' : '#B9A98B'} strokeWidth="1.2" strokeDasharray={has ? undefined : '2 2'} opacity={has ? 1 : 0.5} />
                 {has && <text x={cx} y={cy + 3.5} textAnchor="middle" fontSize="10" fill="#3A2A0E">{b.glyph}</text>}
               </g>
             );
@@ -154,12 +177,18 @@ export function Diorama({ decor, badges, earned, pinned, mastery, studioName }: 
       <OnBackWall x={5.2} z={5.6}>
         <rect x="0" y="0" width={U * 3.5} height={U * 2.5} rx="3" fill="#3E4A40" stroke={WOOD} strokeWidth="5" />
         <text x="10" y="17" className="dio-chalk dio-chalk--small">Today’s class</text>
-        <text x="10" y="36" className="dio-chalk">{pinned ? trim(pinned.name, 15) : 'Nothing pinned'}</text>
+        <text x="10" y="35" className="dio-chalk">{pinned ? trim(pinned.name, 16) : 'Nothing pinned'}</text>
         {pinned
           ? pinned.cards.slice(0, 6).map((c, i) => <g key={i}><rect x={10 + i * 17} y="48" width="13" height="18" rx="2" fill="#F4EBD6" opacity="0.9" /><text x={16.5 + i * 17} y="60" textAnchor="middle" fontSize="8" fill="#3E4A40">{c.name.slice(0, 1)}</text></g>)
           : <text x="10" y="56" className="dio-chalk dio-chalk--small">Pin one in Profile</text>}
       </OnBackWall>
       <Box x={5.25} y={0} z={3.0} w={3.45} d={0.3} h={0.1} top={WOOD} />
+      {/* the shop sign, Moonlighter style */}
+      <OnBackWall x={9.15} z={6.3}>
+        <line x1={U * 0.35} y1="-12" x2={U * 0.35} y2="0" stroke="#6b5a45" strokeWidth="1" />
+        <rect x="0" y="0" width={U * 0.8} height={U * 0.5} rx="3" fill={open ? '#F6D9A0' : '#D8C8AA'} stroke={WOOD} strokeWidth="1.5" className={open ? 'dio-open' : ''} />
+        <text x={U * 0.4} y={U * 0.33} textAnchor="middle" className="dio-sign">{open ? 'Open' : 'Closed'}</text>
+      </OnBackWall>
 
       {/* rug */}
       {decor.rug === 'moss' && <FloorOval cx={4.6} cy={4.2} rx={2.7} ry={2.1} fill="#7F946E" stroke="#6C8060" />}
@@ -192,6 +221,14 @@ export function Diorama({ decor, badges, earned, pinned, mastery, studioName }: 
       {/* plant, front-left */}
       <Plant kind={decor.plant} />
 
+      {/* Mochi, the studio cat, asleep wherever the floor is warmest */}
+      <Mochi />
+
+      {dark && decor.lamp === 'lantern' && <FloorOval cx={6.1} cy={5.3} rx={1.9} ry={1.5} fill="rgba(255,214,150,0.16)" stroke="none" />}
+
+      {/* visitors from the market */}
+      {visitors.map((v) => <VisitorSprite key={v.id} v={v} />)}
+
       {/* light */}
       {decor.lamp === 'lantern' && (() => { const [lx, ly] = pt([6.4, 5.6, 4.3]); const [tx, ty] = pt([6.4, 5.6, 7.6]); return <g className="dio-lamp"><line x1={tx} y1={ty} x2={lx} y2={ly - 18} stroke="#6b5a45" strokeWidth="1.2" /><circle cx={lx} cy={ly} r="46" fill="url(#lampglow)" opacity="0.55" /><ellipse cx={lx} cy={ly} rx="17" ry="19" fill="#FBF1DC" stroke="#D9C49C" /><path d={`M${lx - 17} ${ly - 3} Q${lx} ${ly + 3} ${lx + 17} ${ly - 3} M${lx - 16} ${ly + 6} Q${lx} ${ly + 12} ${lx + 16} ${ly + 6}`} stroke="#E4D2AE" fill="none" /></g>; })()}
       {decor.lamp === 'arc' && (() => { const [bx, by] = pt([9.2, 6.4, 0]); const [hx, hy] = pt([7.6, 5.2, 4.6]); return <g className="dio-lamp"><ellipse cx={bx} cy={by} rx="14" ry="7" fill="#6E5B3E" /><path d={`M${bx} ${by} C ${bx} ${by - 170} ${hx + 40} ${hy - 50} ${hx} ${hy}`} stroke="#B08A45" strokeWidth="3" fill="none" /><circle cx={hx} cy={hy + 14} r="60" fill="url(#lampglow)" opacity="0.5" /><path d={`M${hx - 14} ${hy + 12} Q${hx} ${hy - 12} ${hx + 14} ${hy + 12} Z`} fill="#C9A057" /></g>; })()}
@@ -201,6 +238,55 @@ export function Diorama({ decor, badges, earned, pinned, mastery, studioName }: 
 }
 
 const trim = (s: string, n: number) => (s.length > n ? `${s.slice(0, n - 1)}…` : s);
+
+function Mochi() {
+  const [x, y] = pt([7.7, 5.7, 0]);
+  return (
+    <g className="dio-cat" transform={`translate(${x.toFixed(1)} ${y.toFixed(1)}) scale(1.45)`}>
+      <title>Mochi, the studio cat</title>
+      <ellipse cx="2" cy="1" rx="17" ry="5" fill="rgba(40,28,14,0.18)" />
+      <path className="dio-cat__tail" d="M14 -4 C24 -4 24 6 12 5" stroke="#C9894F" strokeWidth="4" fill="none" strokeLinecap="round" />
+      <ellipse cx="3" cy="-6" rx="14" ry="8" fill="#D99A5C" />
+      <path d="M-4 -11 Q3 -15 10 -11" stroke="#B87A42" strokeWidth="1.6" fill="none" strokeLinecap="round" opacity="0.7" />
+      <circle cx="-9" cy="-8" r="6.5" fill="#D99A5C" />
+      <path d="M-14 -12 L-13 -18 L-9.5 -13.5 Z M-7 -13.5 L-4 -18 L-3.5 -11.5 Z" fill="#C9894F" />
+      <path d="M-12 -8 q1.5 1 3 0 M-8 -8 q1.5 1 3 0" stroke="#5A3A20" strokeWidth="0.9" fill="none" strokeLinecap="round" />
+      <text className="dio-zzz" x="-4" y="-20">z</text>
+    </g>
+  );
+}
+
+function VisitorSprite({ v }: { v: Visitor }) {
+  const j = v.jitter;
+  const p0 = pt([W + 0.8, 6.4 + j, 0]);
+  const p1 = pt([6.4 + j * 1.2, 1.3 + j * 0.4, 0]);
+  const p2 = pt([5.2 + j, 5.6, 0]);
+  const p3 = pt([W + 1, 7.6, 0]);
+  const vars: Record<string, string> = {};
+  [p0, p1, p2, p3].forEach(([x, y], i) => { vars[`--x${i}`] = `${x.toFixed(1)}px`; vars[`--y${i}`] = `${y.toFixed(1)}px`; });
+  const words = v.says.split(' ');
+  const half = Math.ceil(words.length / 2);
+  const lines = v.says.length > 30 ? [words.slice(0, half).join(' '), words.slice(half).join(' ')] : [v.says];
+  return (
+    <g className="dio-visitor" style={vars}>
+      <ellipse cx="0" cy="0" rx="10" ry="4" fill="rgba(40,28,14,0.2)" />
+      <g className="dio-visitor__bob">
+        <path d="M-9 -1 Q-10 -24 0 -28 Q10 -24 9 -1 Z" fill={v.coat} />
+        <path d="M-3 -1 L-3 4 M3 -1 L3 4" stroke="#3A2F3F" strokeWidth="2.4" strokeLinecap="round" />
+        <rect x="6.5" y="-19" width="8" height="10" rx="2" fill={v.tote} />
+        <path d="M7.5 -19 Q10.5 -26 13.5 -19" stroke={v.tote} strokeWidth="1.2" fill="none" />
+        <circle cx="0" cy="-34" r="7.5" fill={v.skin} />
+        <path d="M-8 -34 Q-8 -44 0 -44 Q8 -44 8 -34 Q5 -40 0 -40 Q-5 -40 -8 -34 Z" fill={v.hair} />
+      </g>
+      <g className="dio-visitor__bubble" transform="translate(0 -52)">
+        <rect x="-104" y={-12 - lines.length * 12} width="208" height={12 + lines.length * 12} rx="10" fill="#FDF8EE" stroke="#D8C8AA" />
+        <path d="M-5 -1 L0 7 L5 -1 Z" fill="#FDF8EE" stroke="#D8C8AA" />
+        <rect x="-6" y="-3" width="12" height="3" fill="#FDF8EE" />
+        {lines.map((l, i) => <text key={i} x="0" y={-lines.length * 12 + i * 12 + 1} textAnchor="middle" className="dio-bubble">{l}</text>)}
+      </g>
+    </g>
+  );
+}
 
 function Reformer() {
   const wood = '#C49A6C';

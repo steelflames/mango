@@ -1,4 +1,9 @@
+import { useEffect } from 'react';
 import { useStore } from '../game/store';
+import { useCeremony } from './fly';
+import { sfx } from './sound';
+import { rankGift } from '../content/progress';
+import { rankOf, rankRewards } from '../game/rules';
 import { useInput } from '../input/InputProvider';
 import { BigCard } from './Cards';
 import { Layer } from './Layer';
@@ -7,8 +12,14 @@ import { Layer } from './Layer';
 export function Rewards() {
   const { state, dispatch, content } = useStore();
   const { toast } = useInput();
-  if (state.play && !state.play.finished) return null;
+  const ceremony = useCeremony();
   const reveal = state.pendingReveals[0];
+  const badgeCount = state.pendingMilestoneIds.length;
+  const rankUp = rankOf(state.lifetimePoints).rank > state.rankClaimed;
+  const blocked = ceremony || (!!state.play && !state.play.finished);
+  const revealId = reveal?.cardId;
+  useEffect(() => { if (blocked) return; if (revealId) sfx.learn(); else if (badgeCount || rankUp) sfx.badge(); }, [revealId, badgeCount, rankUp, blocked]);
+  if (blocked) return null;
   if (reveal) {
     const card = content.cardById[reveal.cardId];
     const primary = state.decks.find((d) => d.id === state.primaryDeckId)!;
@@ -36,7 +47,28 @@ export function Rewards() {
     );
   }
   const ms = state.pendingMilestoneIds.map((id) => content.milestones.find((m) => m.id === id)).filter(Boolean) as typeof content.milestones;
-  if (!ms.length) return null;
+  if (!ms.length) {
+    const r = rankOf(state.lifetimePoints);
+    if (r.rank <= state.rankClaimed) return null;
+    const n = state.rankClaimed + 1;
+    const gifts = rankRewards(n);
+    const claim = () => { sfx.badge(); dispatch({ type: 'rank/claim' }); };
+    return (
+      <Layer label={`Practice Rank ${n}`} onClose={claim} backLabel="Claim" className="reveal reveal--rank">
+        <div className="reveal__sparks" aria-hidden="true">{Array.from({ length: 12 }, (_, i) => <span key={i} style={{ ['--i' as string]: i }} />)}</div>
+        <div className="reveal__body">
+          <p className="eyebrow">Practice Rank</p>
+          <div className="rank-burst" aria-hidden="true"><span>{n}</span></div>
+          <h2 className="reveal__title">Rank {n}</h2>
+          <ul className="reveal__list">
+            <li><span className="reveal__glyph medal is-done" aria-hidden="true">✦</span><strong>{rankGift(n)} points</strong><span>To spend on Techniques</span></li>
+            {gifts.map((g) => <li key={g.name}><span className="reveal__glyph medal is-done" aria-hidden="true">⌂</span><strong>{g.name}</strong><span>New for your Studio · {g.slot}</span></li>)}
+          </ul>
+        </div>
+        <button type="button" className="btn btn--primary btn--big" data-autofocus="" onClick={claim}>Claim</button>
+      </Layer>
+    );
+  }
   const close = () => dispatch({ type: 'ui/dismissMilestones' });
   return (
     <Layer label="Badge earned" onClose={close} backLabel="Close" className="reveal" onScrim={close}>

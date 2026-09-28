@@ -6,11 +6,14 @@ import { QueueScreen } from './screens/QueueScreen';
 import { RepertoireScreen } from './screens/RepertoireScreen';
 import { StudioScreen } from './screens/StudioScreen';
 import { TechniqueScreen } from './screens/TechniqueScreen';
+import { Garland } from './ui/Garland';
 import { Intro } from './ui/Intro';
+import { IntentionRibbon } from './ui/Journey';
 import { DEFAULT_BUILDER_VIEW, NavContext, SECTIONS, type BuilderView, type SectionId } from './ui/nav';
 import { OverlayProvider } from './ui/Overlays';
 import { Rewards } from './ui/Rewards';
 import { Settings } from './ui/Settings';
+import { setSoundEnabled } from './ui/sound';
 import { PortraitGuard, PromptBar, Tabs, Toast, TopBar } from './ui/Shell';
 
 const SCREENS: Record<SectionId, ComponentType> = {
@@ -72,12 +75,14 @@ export function App() {
 
 function Frame({ section }: { section: SectionId }) {
   const { state } = useStore();
-  const { settingsOpen } = useInput();
+  const { settingsOpen, prefs } = useInput();
+  useEffect(() => setSoundEnabled(prefs.sound), [prefs.sound]);
   const Screen = SCREENS[section];
   const label = SECTIONS.find((s) => s.id === section)?.label;
   return (
     <>
       <div id="app" className="app">
+        <Garland />
         <TopBar />
         <div className="desk">
           <main className="page" key={section} aria-label={label}>
@@ -89,6 +94,7 @@ function Frame({ section }: { section: SectionId }) {
       </div>
       {settingsOpen && <Settings />}
       <Rewards />
+      <IntentionRibbon />
       {!state.seenIntro && <Intro />}
       <Toast />
       <PortraitGuard />

@@ -2,6 +2,7 @@ import type { ReactNode } from 'react';
 import { nextStep, readNode, type LoopStep } from '../game/rules';
 import { useStore } from '../game/store';
 import { firstIn, focusEl, useInput, type PadKey } from '../input/InputProvider';
+import { JourneyButton } from './Journey';
 import { SECTIONS, useNav } from './nav';
 
 export function GearIcon() {
@@ -44,6 +45,7 @@ export function TopBar() {
         <span className="guide__text"><span className="guide__next">Next</span>{next.text}<span aria-hidden="true" className="guide__arrow">→</span></span>
       </button>
       <div className="topbar__spacer" />
+      <JourneyButton />
       <div className="hud" aria-label="Progress">
         <div className="hud__item hud__item--points" title={`${state.lifetimePoints} earned in all. Spend points on Techniques.`}>
           <span className="hud__value"><span className="hud__spark" aria-hidden="true">✦</span>{state.points}</span>

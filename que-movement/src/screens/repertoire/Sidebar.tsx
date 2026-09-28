@@ -8,6 +8,7 @@ import { Mosaic } from '../../ui/Cards';
 import { useNav } from '../../ui/nav';
 import { useOverlays, type MenuItem } from '../../ui/Overlays';
 import { useDraft } from '../../ui/useDraft';
+import { SendToClient } from '../../ui/SendToClient';
 import { useCardDrag } from './drag';
 import { collectionCards, resolveColl } from './library';
 import { MoreIcon } from './Library';
@@ -137,13 +138,14 @@ function Sequences() {
 /** The ⋯ menu for a Sequence, the same everywhere it appears. */
 export function useSequenceMenu() {
   const { state, dispatch } = useStore();
-  const { confirm, openMenu } = useOverlays();
+  const { confirm, openMenu, openSheet } = useOverlays();
   const { toast } = useInput();
   const load = useLoadSequence();
   const remix = useRemixSequence();
   return (anchor: HTMLElement | null, seq: Sequence) => {
     const items: MenuItem[] = [
-      { label: seq.seeded ? 'Try it in Play' : 'Perform it now', onSelect: () => dispatch({ type: 'play/start', sequenceId: seq.id }) }
+      { label: seq.seeded ? 'Try it in Play' : 'Perform it now', onSelect: () => dispatch({ type: 'play/start', sequenceId: seq.id }) },
+      { label: 'Send to a client', onSelect: () => openSheet({ eyebrow: 'Send to a client', title: seq.name, body: <SendToClient seq={seq} /> }) }
     ];
     if (seq.seeded) {
       items.push({ label: 'Remix into my Repertoire', onSelect: () => void remix(seq) });

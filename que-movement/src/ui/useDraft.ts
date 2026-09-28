@@ -5,6 +5,7 @@ import { useStore } from '../game/store';
 import type { Slot } from '../game/types';
 import { useInput } from '../input/InputProvider';
 import { useNav } from './nav';
+import { sfx } from './sound';
 
 /** Adding and attaching Qcards to the Sequence in progress, with the same limits and
  *  the same gentle messages wherever it happens (tiles, drag and drop, menus, the details peek). */
@@ -32,6 +33,7 @@ export function useDraft() {
     if (target.modifiers.includes(card.id)) { toast(`${card.name} is already on ${name}.`); return false; }
     if (target.modifiers.length >= RULES.maxProgressionsPerCard) { toast(`${name} already carries ${RULES.maxProgressionsPerCard} progressions.`); return false; }
     dispatch({ type: 'draft/attach', slotId: target.slotId, cardId: card.id });
+    sfx.add(slots.indexOf(target) + 4);
     toast(`${card.name} added to ${name}.`);
     return true;
   };
@@ -44,6 +46,7 @@ export function useDraft() {
     if (!isOpen(card)) { toast(`${card.name} isn’t in your Repertoire yet. Learn it in Technique.`); return false; }
     if (full) { toast(`A Sequence holds up to ${RULES.maxSteps} steps.`); return false; }
     dispatch({ type: 'draft/add', cardId: card.id, index });
+    sfx.add(slots.length);
     const where = index === 0 ? ' at the start' : index !== undefined && index < slots.length ? ` as step ${index + 1}` : '';
     toast(`${card.name} added${where} · ${slots.length + 1} of ${RULES.maxSteps}`);
     return true;

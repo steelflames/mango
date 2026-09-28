@@ -12,7 +12,7 @@ import { activeRoot, candidates, firstIn, focusEl, isNavigable, nextInDirection,
 export type Mode = 'mouse' | 'touch' | 'pad';
 export type InputPref = 'auto' | 'mouse' | 'touch' | 'pad';
 export type PadKey = Dir | 'a' | 'b' | 'x' | 'y' | 'lb' | 'rb' | 'lt' | 'rt' | 'menu';
-export interface Prefs { input: InputPref; prompts: boolean; motion: 'device' | 'reduce' | 'full' }
+export interface Prefs { input: InputPref; prompts: boolean; motion: 'device' | 'reduce' | 'full'; sound: boolean }
 
 interface Entry<T> { id: number; value: T }
 interface BackValue { label: string; run: () => void }
@@ -57,9 +57,9 @@ const PREFS_KEY = 'que-movement:settings';
 function loadPrefs(): Prefs {
   try {
     const p = JSON.parse(localStorage.getItem(PREFS_KEY) || '{}');
-    return { input: p.input ?? 'auto', prompts: p.prompts ?? true, motion: p.motion ?? 'device' };
+    return { input: p.input ?? 'auto', prompts: p.prompts ?? true, motion: p.motion ?? 'device', sound: p.sound ?? true };
   } catch {
-    return { input: 'auto', prompts: true, motion: 'device' };
+    return { input: 'auto', prompts: true, motion: 'device', sound: true };
   }
 }
 

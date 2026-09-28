@@ -1,6 +1,7 @@
 // The rules of Que Movement: points, streaks, doses, seams, milestones and the Technique tree.
 import type { Card, Content, Dose, Milestone, MilestoneTrigger, MovementCard, Position, TechniqueNode, TransitionCard } from '../content/types';
 import { DECOR, TITLES, type DecorUnlock } from '../content/studio';
+import { MAX_RANK, RANK_XP } from '../content/progress';
 import type { Analytics, GameState, Sequence, Slot } from './types';
 
 export const SECONDS_PER_REP = 6;
@@ -239,6 +240,7 @@ export function instructorTitle(state: GameState, content: Content): string {
 interface MilestoneEvent {
   trigger: MilestoneTrigger;
   completedCardIds?: string[];
+  harmonies?: number;
 }
 
 export function milestoneMet(m: Milestone, ev: MilestoneEvent, state: GameState, content: Content): boolean {
@@ -254,6 +256,7 @@ export function milestoneMet(m: Milestone, ev: MilestoneEvent, state: GameState,
   if (rule.minTransitions && cards.filter((c) => c.kind === 'transition').length < rule.minTransitions) return false;
   if (rule.minProgressions && cards.filter((c) => c.kind === 'progression').length < rule.minProgressions) return false;
   if (rule.minCards && ids.length < rule.minCards) return false;
+  if (rule.minHarmonies && (ev.harmonies ?? 0) < rule.minHarmonies) return false;
   return true;
 }
 
@@ -279,10 +282,40 @@ export function checkMilestones(state: GameState, ev: MilestoneEvent, content: C
   };
 }
 
+// ---------------- Practice Rank ----------------
+
+export function rankOf(lifetime: number) {
+  let rank = 1;
+  while (rank < MAX_RANK && lifetime >= RANK_XP[rank]) rank += 1;
+  const floor = RANK_XP[rank - 1];
+  const next = rank < MAX_RANK ? RANK_XP[rank] : floor;
+  return { rank, into: lifetime - floor, need: next - floor, pct: rank < MAX_RANK ? (lifetime - floor) / (next - floor) : 1, max: rank >= MAX_RANK };
+}
+
+/** Decor that a rank opens, for the rank-up card and the Journey sheet. */
+export function rankRewards(rank: number) {
+  return DECOR.flatMap((d) => d.variants.filter((v) => v.unlock?.rank === rank).map((v) => ({ slot: d.label, name: v.name })));
+}
+
+// ---------------- Teacher standing ----------------
+
+export const TEACHER_LEVELS: [number, string][] = [[0, 'Sharing'], [10, 'Guide'], [30, 'Mentor'], [70, 'Beloved Teacher'], [140, 'Luminary']];
+
+/** What sharing has earned: kudos from visitors, saves on shared Sequences, plans sent to clients. */
+export function teacherStanding(state: GameState) {
+  const saves = state.sequences.filter((s) => !s.seeded && s.published).reduce((a, s) => a + (s.community?.saves ?? 0), 0);
+  const score = state.kudos * 2 + Math.floor(saves / 4) + state.sent.length * 3;
+  const i = TEACHER_LEVELS.map(([min]) => score >= min).lastIndexOf(true);
+  const [floor, title] = TEACHER_LEVELS[i];
+  const next = TEACHER_LEVELS[i + 1];
+  return { score, title, level: i + 1, pct: next ? (score - floor) / (next[0] - floor) : 1, nextAt: next?.[0] };
+}
+
 // ---------------- the Studio ----------------
 
 export function decorOpen(unlock: DecorUnlock | undefined, state: GameState, content: Content): boolean {
   if (!unlock) return true;
+  if (unlock.rank && rankOf(state.lifetimePoints).rank < unlock.rank) return false;
   if (unlock.badgeId && !state.badgeIds.includes(unlock.badgeId)) return false;
   if (unlock.techniques && techniquesKnown(state, content) < unlock.techniques) return false;
   if (unlock.lifetimePoints && state.lifetimePoints < unlock.lifetimePoints) return false;
@@ -291,6 +324,7 @@ export function decorOpen(unlock: DecorUnlock | undefined, state: GameState, con
 
 export function decorHint(unlock: DecorUnlock | undefined, content: Content): string {
   if (!unlock) return '';
+  if (unlock.rank) return `Reach Practice Rank ${unlock.rank}`;
   if (unlock.badgeId) return `Earn the ${content.badges.find((b) => b.id === unlock.badgeId)?.name ?? ''} badge`;
   if (unlock.techniques) return `Know ${unlock.techniques} Techniques`;
   if (unlock.lifetimePoints) return `Earn ${unlock.lifetimePoints} points in all`;

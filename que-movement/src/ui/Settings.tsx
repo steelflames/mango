@@ -4,10 +4,12 @@ import { useBumpers, useInput, type InputPref, type Prefs } from '../input/Input
 import { Layer } from './Layer';
 import { CloseIcon, useOverlays } from './Overlays';
 import { SkinPicker } from './SkinPicker';
+import { setSoundEnabled, sfx } from './sound';
 
 const CATS = [
   { key: 'controls', label: 'Controls', glyph: '◎' },
   { key: 'motion', label: 'Motion', glyph: '∿' },
+  { key: 'sound', label: 'Sound', glyph: '♪' },
   { key: 'look', label: 'Look', glyph: '◐' },
   { key: 'data', label: 'Game data', glyph: '❋' }
 ] as const;
@@ -78,6 +80,13 @@ export function Settings() {
               <p>Lifts, slides and fades as cards and tabs move.</p>
               <Options<Prefs['motion']> label="Motion" value={prefs.motion} onPick={(v) => setPrefs({ motion: v })}
                 options={[['device', 'Match this device'], ['reduce', 'Reduced'], ['full', 'Full']]} />
+            </section>
+          )}
+          {key === 'sound' && (
+            <section className="setting">
+              <h3>Sound</h3>
+              <p>A soft kalimba: cards pluck as they join a Sequence, a streak climbs the scale, the teachers’ Harmonies ring out at the end.</p>
+              <Options<boolean> label="Sound" value={prefs.sound} onPick={(v) => { setPrefs({ sound: v }); setSoundEnabled(v); if (v) sfx.harmony(0); }} options={[[true, 'On'], [false, 'Off']]} />
             </section>
           )}
           {key === 'look' && (

@@ -1,10 +1,15 @@
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { POSITION_LABEL } from '../content/content';
 import { clock, doseLabel, mixLabel, readNode, sequenceStats, streakBonus, viewSlot } from '../game/rules';
 import { useStore } from '../game/store';
 import type { PlayState, Sequence } from '../game/types';
 import { focusEl, useBack, useInput, usePrimary, useTriggers } from '../input/InputProvider';
-import { Art, BigCard, Mosaic } from '../ui/Cards';
+import { accentOf, Art, BigCard, Mosaic } from '../ui/Cards';
+import { fly, setCeremony } from '../ui/fly';
+import { sfx } from '../ui/sound';
+import { VictoryLap, type LapCard } from '../ui/VictoryLap';
+import { SendToClient } from '../ui/SendToClient';
+import { readHarmonies } from '../game/harmonies';
 import { useNav } from '../ui/nav';
 import { useOverlays } from '../ui/Overlays';
 import { useDraft } from '../ui/useDraft';
@@ -54,6 +59,8 @@ function Playing({ seq, play }: { seq: Sequence; play: PlayState }) {
     const streak = play.streak + 1;
     const bonus = streakBonus(streak);
     setPop({ n: v.points + bonus, bonus, key: Date.now() });
+    sfx.complete(streak);
+    fly(document.querySelector('.play__card .big-card'), document.querySelector('.pile__slot'), { duration: 620, rotate: -6, lift: 40 });
     dispatch({ type: 'play/complete' });
     const next = seq.slots.findIndex((s, i) => i > index && !play.completedSlotIds.includes(s.slotId));
     const wrap = next < 0 ? seq.slots.findIndex((s, i) => i !== index && !play.completedSlotIds.includes(s.slotId)) : next;
@@ -95,6 +102,15 @@ function Playing({ seq, play }: { seq: Sequence; play: PlayState }) {
             </li>
           ))}
         </ol>
+        <div className="pile" role="img" aria-label={`${play.completedSlotIds.length} of ${seq.slots.length} cards completed`}>
+          <span className="pile__slot" aria-hidden="true">
+            {views.filter((w, i) => w && done(i)).slice(-5).map((w, k) => w && (
+              <span key={w.slot.slotId} className="pile__card" style={{ ['--k' as string]: k, ['--r' as string]: `${((k * 37) % 9) - 4}deg` }}><Art card={w.card} content={content} /></span>
+            ))}
+            {!play.completedSlotIds.length && <span className="pile__empty">Completed cards land here</span>}
+          </span>
+          <span className="pile__count"><strong>{play.completedSlotIds.length}</strong>/{seq.slots.length}</span>
+        </div>
         <button type="button" className="btn btn--ghost btn--small" onClick={leave}>Leave Sequence</button>
       </aside>
 
@@ -137,10 +153,15 @@ function Playing({ seq, play }: { seq: Sequence; play: PlayState }) {
 
 // ---------------------------------------------------------------- finished
 
+type Phase = 'lap' | 'ledger' | 'done';
+/** Performances whose ceremony has already played, so coming back to Play doesn't replay it. */
+const celebrated = new Set<number>();
+
 function PlayComplete({ seq, play }: { seq: Sequence; play: PlayState }) {
   const { state, dispatch, content } = useStore();
   const { go } = useNav();
   const { toast } = useInput();
+  const { openSheet } = useOverlays();
   const load = useLoadSequence();
   const remix = useRemixSequence();
   const stats = sequenceStats(seq.slots, content);
@@ -148,35 +169,81 @@ function PlayComplete({ seq, play }: { seq: Sequence; play: PlayState }) {
   const mine = !seq.seeded;
   const done = () => dispatch({ type: 'play/exit' });
   const ready = content.branch.nodes.filter((n) => readNode(n, state, content).status === 'ready');
+  const readings = useMemo(() => readHarmonies(seq.slots, content, state.ownedCardIds), [seq.slots, content, state.ownedCardIds]);
+  const met = readings.filter((r) => r.status === 'met');
+  const notes = readings.filter((r) => r.status === 'open' && r.hint);
+  const lapCards = useMemo<LapCard[]>(() => seq.slots.map((s) => content.cardById[s.cardId]).filter(Boolean).map((c) => ({ name: c.name, accent: accentOf(c, content) ?? 'var(--dusty-blue)' })), [seq.slots, content]);
+  const seen = celebrated.has(play.startedAt);
+  const [phase, setPhase] = useState<Phase>(seen ? 'done' : 'lap');
+  const [shown, setShown] = useState(seen ? met.length : 0);
+  const cardPoints = play.pointsEarned - (play.harmonyPoints ?? 0);
+  const total = cardPoints + met.slice(0, shown).reduce((a, r) => a + r.def.points, 0);
+
+  // Hold badges back until the ceremony has played.
+  useEffect(() => {
+    if (celebrated.has(play.startedAt)) return;
+    celebrated.add(play.startedAt);
+    setCeremony(true);
+    return () => setCeremony(false);
+  }, [play.startedAt]);
+  useEffect(() => {
+    if (phase !== 'ledger') return;
+    if (shown >= met.length) { const t = window.setTimeout(() => { setPhase('done'); setCeremony(false); }, 500); return () => window.clearTimeout(t); }
+    const t = window.setTimeout(() => { sfx.harmony(shown); setShown((n) => n + 1); }, shown === 0 ? 350 : 520);
+    return () => window.clearTimeout(t);
+  }, [phase, shown, met.length]);
+  const skip = () => { setShown(met.length); setPhase('done'); setCeremony(false); };
   usePrimary(true, ready.length ? 'Spend points in Technique' : 'Perform again', () => { if (ready.length) { done(); go('technique'); } else dispatch({ type: 'play/start', sequenceId: seq.id }); });
   useBack(true, 'Done', done);
+  const improve = () => { done(); void (mine ? load(seq) : remix(seq)); };
 
   return (
-    <div className="screen play-done">
+    <div className="screen play-done" onClick={phase === 'ledger' ? skip : undefined}>
+      {phase === 'lap' && <VictoryLap cards={lapCards} onDone={() => setPhase('ledger')} />}
       <div className="play-done__art"><Mosaic cardIds={seq.slots.map((s) => s.cardId)} content={content} /></div>
       <div className="play-done__body">
         <p className="eyebrow">Sequence performed</p>
         <h1 className="page-title">{seq.name}</h1>
-        <p className="page-sub">You built it, you performed it. Now spend what you earned on what comes next.</p>
-        <dl className="done-stats">
-          <div className="is-gold"><dt>Earned</dt><dd>✦ {play.pointsEarned}</dd></div>
-          <div><dt>To spend</dt><dd>{state.points}</dd></div>
-          <div><dt>Best streak</dt><dd>{play.bestStreak}</dd></div>
-          <div><dt>Time</dt><dd>{minutes} min</dd></div>
-        </dl>
-        {ready.length > 0 ? (
-          <div className="within-reach">
-            <p className="eyebrow">Within reach</p>
-            <ul>{ready.map((n) => <li key={n.id}><Art card={content.cardById[n.cardId]} content={content} live /><span>{content.cardById[n.cardId].name}<small>✦ {n.cost}</small></span></li>)}</ul>
-          </div>
-        ) : <p className="muted">{mixLabel(stats.mix)} · {stats.totalCards} cards</p>}
-        <div className="play-done__actions">
-          {ready.length > 0 && <button type="button" className="btn btn--primary" data-autofocus="" onClick={() => { done(); go('technique'); }}>Learn a Technique →</button>}
-          {mine && !seq.published && <button type="button" className={`btn ${ready.length ? 'btn--ghost' : 'btn--primary'}`} data-autofocus={ready.length ? undefined : ''} onClick={() => { dispatch({ type: 'sequence/publish', sequenceId: seq.id }); toast(`${seq.name} is In the Queue.`); }}>Share In the Queue</button>}
-          <button type="button" className="btn btn--ghost" data-autofocus={!ready.length && (!mine || seq.published) ? '' : undefined} onClick={() => dispatch({ type: 'play/start', sequenceId: seq.id })}>Perform again</button>
-          <button type="button" className="btn btn--ghost" onClick={() => { done(); void (mine ? load(seq) : remix(seq)); }}>{mine ? 'Refine in Repertoire' : 'Remix it'}</button>
-          <button type="button" className="btn btn--ghost" onClick={done}>Done</button>
+        <div className={`ledger ${phase === 'done' ? 'is-settled' : ''}`} aria-live="polite">
+          <div className="ledger__row"><span>Cards and streak</span><strong>+{cardPoints}</strong></div>
+          {met.map((r, i) => (
+            <div key={r.def.id} className={`ledger__row ledger__row--harmony ${i < shown ? 'is-in' : ''}`}>
+              <span><span className="ledger__glyph" aria-hidden="true">{r.def.glyph}</span>{r.def.name}<small>{r.def.says}</small></span>
+              <strong>+{r.def.points}</strong>
+            </div>
+          ))}
+          {!met.length && <p className="muted ledger__none">No Harmonies this time. The teachers left notes below.</p>}
+          <div className="ledger__total"><span>{met.length} of 7 Harmonies</span><strong>✦ {total}</strong></div>
         </div>
+        {phase === 'done' && (
+          <div className="play-done__after">
+            <dl className="done-stats">
+              <div><dt>To spend</dt><dd>{state.points}</dd></div>
+              <div><dt>Best streak</dt><dd>{play.bestStreak}</dd></div>
+              <div><dt>Time</dt><dd>{minutes} min</dd></div>
+              <div><dt>Cards</dt><dd>{stats.totalCards}</dd></div>
+            </dl>
+            {notes.length > 0 && (
+              <p className="tnote"><span className="tnote__who">Teacher’s note for next time · {notes[0].def.name}</span>{notes[0].hint}</p>
+            )}
+            {ready.length > 0 && (
+              <div className="within-reach">
+                <p className="eyebrow">Within reach</p>
+                <ul>{ready.map((n) => <li key={n.id}><Art card={content.cardById[n.cardId]} content={content} live /><span>{content.cardById[n.cardId].name}<small>✦ {n.cost}</small></span></li>)}</ul>
+              </div>
+            )}
+            <div className="play-done__actions">
+              {ready.length > 0 && <button type="button" className="btn btn--primary" data-autofocus="" onClick={() => { done(); go('technique'); }}>Learn a Technique →</button>}
+              {notes.length > 0 && <button type="button" className={`btn ${ready.length ? 'btn--ghost' : 'btn--primary'}`} data-autofocus={ready.length ? undefined : ''} onClick={improve}>Improve it</button>}
+              {mine && !seq.published && <button type="button" className="btn btn--ghost" onClick={() => { dispatch({ type: 'sequence/publish', sequenceId: seq.id }); toast(`${seq.name} is In the Queue.`); }}>Share In the Queue</button>}
+              <button type="button" className="btn btn--ghost" onClick={() => openSheet({ eyebrow: 'Send to a client', title: seq.name, body: <SendToClient seq={seq} /> })}>Send to a client</button>
+              <button type="button" className="btn btn--ghost" data-autofocus={!ready.length && !notes.length ? '' : undefined} onClick={() => dispatch({ type: 'play/start', sequenceId: seq.id })}>Perform again</button>
+              {!notes.length && <button type="button" className="btn btn--ghost" onClick={improve}>{mine ? 'Refine in Repertoire' : 'Remix it'}</button>}
+              <button type="button" className="btn btn--ghost" onClick={done}>Done</button>
+            </div>
+            <p className="muted play-done__mix">{mixLabel(stats.mix)}</p>
+          </div>
+        )}
       </div>
     </div>
   );
