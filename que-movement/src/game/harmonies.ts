@@ -19,7 +19,7 @@ export interface HarmonyDef {
 export const HARMONIES: HarmonyDef[] = [
   { id: 'arrive', name: 'Arrive', glyph: '☾', says: 'Start with the breath, or something that asks nothing of you yet.', points: 5 },
   { id: 'rising-arc', name: 'Rising Arc', glyph: '⌒', says: 'Build to the hardest thing in the middle, never the first or the last.', points: 10 },
-  { id: 'counterpose', name: 'Counterpose', glyph: '⇅', says: 'Every flexion deserves an extension.', points: 10 },
+  { id: 'counterpose', name: 'Counterpose', glyph: '⇅', says: 'Every flexion deserves an extension. After you curl, open the front of the body.', points: 10 },
   { id: 'seamless', name: 'Seamless', glyph: '≈', says: 'Don’t make them scramble. Bridge the change of position.', points: 10 },
   { id: 'economy', name: 'Economy', glyph: '◇', says: 'Five or more exercises, two changes of position at most. Flow beats fuss.', points: 10 },
   { id: 'whole-body', name: 'Whole Body', glyph: '❋', says: 'Something for the back line, the centre and the shoulders.', points: 15 },
@@ -78,7 +78,7 @@ export function readHarmonies(slots: Slot[], content: Content, owned: string[]):
     if (middle && rises) push('rising-arc', 'met');
     else {
       const p = steps[at[0]];
-      push('rising-arc', 'open', !rises ? `Everything sits at the same effort. Add something that asks a little more, like a progression on ${steps[Math.floor(steps.length / 2)].card.name}.` : `${p.card.name} is your peak. Move it toward the middle.`);
+      push('rising-arc', 'open', !rises ? `Nothing climbs above where you began. Open gentler, or add a progression to ${steps[Math.floor(steps.length / 2)].card.name} so the work builds.` : `${p.card.name} is your peak. Move it towards the middle.`);
     }
   }
 
@@ -91,7 +91,7 @@ export function readHarmonies(slots: Slot[], content: Content, owned: string[]):
     if (ext) push('counterpose', 'met');
     else {
       const extOwned = content.movementCards.filter((c) => c.spine === 'extension' && has(c.id)).map((c) => c.name);
-      push('counterpose', 'open', extOwned.length ? `After ${lastFlex.card.name}, answer it with ${extOwned.includes('Swan Preparation') ? 'Swan Preparation' : extOwned[0]}.` : `After ${lastFlex.card.name}, add an extension. Swan Preparation is in the Shoulders path.`);
+      push('counterpose', 'open', extOwned.length ? `After ${lastFlex.card.name}, answer it with ${extOwned.includes('Swan Preparation') ? 'Swan Preparation' : extOwned[0]}.` : `After ${lastFlex.card.name}, open the front of the body. Swan Preparation grows on the Shoulders path.`);
     }
   }
 
@@ -110,7 +110,7 @@ export function readHarmonies(slots: Slot[], content: Content, owned: string[]):
   const changes = Math.max(0, route.length - 1);
   if (steps.length < 5) push('economy', 'idle', `Needs five movements; you have ${steps.length}.`);
   else if (changes <= 2) push('economy', 'met');
-  else push('economy', 'open', `${changes} changes of position. Group cards that share a position to get it to two.`);
+  else push('economy', 'open', `${changes} changes of position. Gather cards that share a position so there are two at most.`);
 
   // Whole Body
   const paths = new Set(steps.map((s) => s.card.pathId));
@@ -128,7 +128,7 @@ export function readHarmonies(slots: Slot[], content: Content, owned: string[]):
   else {
     const last = steps[steps.length - 1];
     if (last.intensity <= 2) push('settle', 'met');
-    else push('settle', 'open', calm.length ? `You end on ${last.card.name}. Finish with ${name(calm[calm.length - 1])}.` : `End on something calmer than ${last.card.name}.`);
+    else push('settle', 'open', calm.length ? `You end on ${last.card.name}. Close with something quieter, such as ${name(calm[calm.length - 1])}.` : `End on something calmer than ${last.card.name}.`);
   }
   return out;
 }

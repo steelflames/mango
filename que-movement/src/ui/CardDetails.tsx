@@ -1,4 +1,5 @@
 import { POSITION_LABEL } from '../content/content';
+import { SPECIAL_TEACHING, TEACHING } from '../content/teaching';
 import type { Card } from '../content/types';
 import { clock, doseLabel, doseWithSetup, readNode } from '../game/rules';
 import { useStore } from '../game/store';
@@ -68,6 +69,39 @@ export function CardDetails({ card }: { card: Card }) {
           {!owned && <button type="button" className="btn btn--primary" data-autofocus="" onClick={() => { closeSheet(); go('technique'); }}>See it in Technique</button>}
         </div>
       </div>
+      <div className="details__teach"><Teaching card={card} /></div>
     </div>
+  );
+}
+
+/** The Council's notes: how to set up, breathe, cue and see it, and how to make it easier or harder. */
+export function Teaching({ card }: { card: Card }) {
+  if (card.kind !== 'movement') {
+    const t = SPECIAL_TEACHING[card.id];
+    if (!t) return null;
+    return (
+      <section className="teach">
+        <h3 className="arrange__label">Cues</h3>
+        <ul className="teach__cues">{t.cues.map((c) => <li key={c}>{c}</li>)}</ul>
+        {t.takeCare && <p className="teach__care"><strong>Take care</strong> {t.takeCare}</p>}
+      </section>
+    );
+  }
+  const t = TEACHING[card.id];
+  if (!t) return null;
+  return (
+    <section className="teach" aria-label="How to teach it">
+      <h3 className="arrange__label">How to teach it</h3>
+      <p><strong>Setup</strong> {t.setup}</p>
+      <p><strong>Breath</strong> {t.breath}</p>
+      <ul className="teach__cues">{t.cues.map((c) => <li key={c}>{c}</li>)}</ul>
+      <div className="teach__watch"><strong>A teacher watches for</strong><ul>{t.watchFor.map((w) => <li key={w}>{w}</li>)}</ul></div>
+      <div className="teach__vars">
+        <div><span className="eyebrow">Easier</span><strong>{t.easier.name}</strong><p>{t.easier.how}</p></div>
+        {t.harder && <div><span className="eyebrow">Harder</span><strong>{t.harder.name}</strong><p>{t.harder.how}</p></div>}
+      </div>
+      <p className="teach__care"><strong>Take care</strong> {t.takeCare}</p>
+      <p className="teach__draft">Drafted by the Pilates Council for educator sign-off. General guidance, not medical advice.</p>
+    </section>
   );
 }

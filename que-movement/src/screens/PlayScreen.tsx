@@ -9,6 +9,10 @@ import { fly, setCeremony } from '../ui/fly';
 import { sfx } from '../ui/sound';
 import { VictoryLap, type LapCard } from '../ui/VictoryLap';
 import { SendToClient } from '../ui/SendToClient';
+import { Teaching } from '../ui/CardDetails';
+import { SPECIAL_TEACHING, TEACHING } from '../content/teaching';
+import { useMotionOk } from '../ui/art/CardArt';
+import type { Card } from '../content/types';
 import { readHarmonies } from '../game/harmonies';
 import { useNav } from '../ui/nav';
 import { useOverlays } from '../ui/Overlays';
@@ -119,6 +123,7 @@ function Playing({ seq, play }: { seq: Sequence; play: PlayState }) {
         <div className={`play__card deal-${dir}`} key={v.slot.slotId}>
           <BigCard card={v.card} content={content} modifiers={v.modifiers} glow={isDone}
             footer={<><span>{doseText}</span><span>{v.card.kind === 'movement' ? POSITION_LABEL[v.card.position] : ''}</span><span>{v.points} pts</span></>} />
+          <CuePeek card={v.card} />
           {pop && <span key={pop.key} className="points-pop" aria-hidden="true">+{pop.n}{pop.bonus ? <small>streak +{pop.bonus}</small> : null}</span>}
         </div>
       </section>
@@ -147,6 +152,32 @@ function Playing({ seq, play }: { seq: Sequence; play: PlayState }) {
           <button type="button" className="btn btn--ghost" onClick={() => goto(index + 1)} aria-disabled={index === seq.slots.length - 1 || undefined}>Next ›</button>
         </div>
       </aside>
+    </div>
+  );
+}
+
+/** The teacher at your shoulder: one cue at a time, the breath, and the way to make it easier. */
+function CuePeek({ card }: { card: Card }) {
+  const { openSheet } = useOverlays();
+  const motion = useMotionOk();
+  const t = card.kind === 'movement' ? TEACHING[card.id] : undefined;
+  const cues = t?.cues ?? SPECIAL_TEACHING[card.id]?.cues ?? [];
+  const [k, setK] = useState(0);
+  useEffect(() => { setK(0); }, [card.id]);
+  useEffect(() => {
+    if (!motion || cues.length < 2) return;
+    const id = window.setInterval(() => setK((x) => (x + 1) % cues.length), 7000);
+    return () => window.clearInterval(id);
+  }, [motion, cues.length, card.id]);
+  if (!cues.length) return null;
+  return (
+    <div className="cue-peek">
+      <p className="cue-peek__cue" key={k}><span className="eyebrow">Teacher’s cue</span>{cues[k % cues.length]}</p>
+      {t && <p className="cue-peek__breath"><strong>Breath</strong> {t.breath}</p>}
+      <div className="cue-peek__foot">
+        {t && <span><strong>Easier:</strong> {t.easier.name}</span>}
+        <button type="button" className="cue-peek__more" onClick={() => openSheet({ eyebrow: 'The Pilates Council', title: card.name, body: <Teaching card={card} /> })} data-a="All the notes">All the notes</button>
+      </div>
     </div>
   );
 }

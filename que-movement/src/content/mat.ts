@@ -45,7 +45,7 @@ export const movementCards: MovementCard[] = [
   mv({ id: 'clam', pathId: 'bridging', level: 'foundation', spine: 'neutral', intensity: 2, name: 'Side-Lying Clam', art: 'clam', position: 'side-lying',
     dose: { kind: 'reps', reps: 10, perSide: true }, shortCue: 'Feet stay together; the top knee opens like a book.', movementGoal: 'Hip rotation with a still pelvis' }),
   mv({ id: 'single-leg-bridge', pathId: 'bridging', level: 'challenge', spine: 'extension', intensity: 4, name: 'Single-Leg Bridge', art: 'single-leg-bridge', position: 'supine',
-    dose: { kind: 'reps', reps: 5, perSide: true }, shortCue: 'Lift from the standing leg without letting the opposite hip drop.', movementGoal: 'Single-leg hip extension with control' }),
+    dose: { kind: 'reps', reps: 5, perSide: true }, shortCue: 'Press through the grounded foot to lift; both hips stay level as you rise.', movementGoal: 'Single-leg hip extension with control' }),
 
   mv({ id: 'dead-bug', pathId: 'core', level: 'foundation', spine: 'neutral', intensity: 2, name: 'Dead Bug', art: 'dead-bug', position: 'supine',
     dose: { kind: 'reps', reps: 6, perSide: true }, shortCue: 'Keep the ribs heavy as the opposite arm and leg travel away.', movementGoal: 'Rib and pelvis connection' }),
@@ -65,7 +65,7 @@ export const movementCards: MovementCard[] = [
   mv({ id: 'bird-dog', pathId: 'shoulders', level: 'working', spine: 'neutral', intensity: 3, name: 'Bird Dog', art: 'bird-dog', position: 'quadruped',
     dose: { kind: 'reps', reps: 6, perSide: true }, shortCue: 'Reach long through opposite hand and heel. The water glass on your back stays full.', movementGoal: 'Cross-body stability on a narrow base' }),
   mv({ id: 'swan-prep', pathId: 'shoulders', level: 'working', spine: 'extension', intensity: 3, name: 'Swan Preparation', art: 'swan-prep', position: 'prone',
-    dose: { kind: 'reps', reps: 6 }, shortCue: 'Slide the shoulder blades down and let the chest glide forward and up.', movementGoal: 'Upper-back extension without pinching' }),
+    dose: { kind: 'reps', reps: 6 }, shortCue: 'Lengthen through the crown, then let the breastbone glide forward and up.', movementGoal: 'Upper-back extension without pinching' }),
   mv({ id: 'plank-control', pathId: 'shoulders', level: 'challenge', spine: 'neutral', intensity: 4, name: 'Plank Scapular Control', art: 'plank-control', position: 'prone',
     dose: { kind: 'hold', seconds: 30 }, shortCue: 'Hold the plank while the shoulder blades stay wide and quiet.', movementGoal: 'Scapular stability under full load' })
 ];
@@ -74,7 +74,7 @@ export const specialCards: SpecialCard[] = [
   { id: 'tr-seated-supine', kind: 'transition', name: 'Seated Roll Down', art: 'transition-roll', points: 5, duration: 30, from: ['seated'], to: ['supine'],
     shortCue: 'Roll back through the spine until the shoulders reach the mat.', movementGoal: 'Sequential descent to the floor' },
   { id: 'tr-supine-side', kind: 'transition', name: 'Log Roll to Side', art: 'transition-roll', points: 5, duration: 25, from: ['supine'], to: ['side-lying'],
-    shortCue: 'Lower with control, then roll to one side as one piece.', movementGoal: 'Changing base of support smoothly' },
+    shortCue: 'Draw the knees together and roll to one side as one piece.', movementGoal: 'Changing base of support smoothly' },
   { id: 'tr-roll-to-quadruped', kind: 'transition', name: 'Roll to Quadruped', art: 'transition-turn', points: 5, duration: 30, from: ['supine', 'side-lying'], to: ['quadruped'],
     shortCue: 'Roll to one side, press up, and arrive on all fours.', movementGoal: 'Floor-level position change' },
   { id: 'tr-quad-prone', kind: 'transition', name: 'Quadruped to Prone', art: 'transition-roll', points: 5, duration: 25, from: ['quadruped'], to: ['prone'],
@@ -85,7 +85,7 @@ export const specialCards: SpecialCard[] = [
   { id: 'pr-slow-tempo', kind: 'progression', pathId: 'core', name: 'Slow Tempo', art: 'progression-tempo', points: 5, duration: 0, effect: 'Double the time',
     shortCue: 'Take twice as long in both directions.', movementGoal: 'Time under tension and precision' },
   { id: 'pr-longer-lever', kind: 'progression', pathId: 'bridging', name: 'Longer Lever', art: 'progression-lever', points: 5, duration: 20, effect: 'More leverage at the joint',
-    shortCue: 'Reach the limb further away from its joint.', movementGoal: 'Increased load without added weight' },
+    shortCue: 'Reach the limb longer, only as far as the centre stays steady.', movementGoal: 'Increased load without added weight' },
   { id: 'pr-add-coordination', kind: 'progression', pathId: 'shoulders', name: 'Add Coordination', art: 'progression-coord', points: 5, duration: 20, effect: 'A second task on top',
     shortCue: 'Layer a second task: opposite limbs, a breath count, eyes closed.', movementGoal: 'Motor planning under load' }
 ];
@@ -110,7 +110,7 @@ export const branch: Branch = {
     { id: 'n-slow-tempo', cardId: 'pr-slow-tempo', pathId: 'core', x: 44, y: 58, cost: 20, requires: ['n-dead-bug'], note: 'A progression: the same work, twice as slow.' },
     { id: 'n-toe-taps', cardId: 'toe-taps', pathId: 'core', x: 44, y: 40, cost: 25, requires: ['n-dead-bug'], note: 'Legs move; the centre stays.' },
     { id: 'n-hundred-prep', cardId: 'hundred-prep', pathId: 'core', x: 65, y: 31, cost: 45, requires: ['n-toe-taps'], note: 'Flexion with breath.' },
-    { id: 'n-roll-up', cardId: 'roll-up', pathId: 'core', x: 65, y: 49, cost: 50, requires: ['n-toe-taps'], note: 'The spine, one bone at a time.' },
+    { id: 'n-roll-up', cardId: 'roll-up', pathId: 'core', x: 65, y: 49, cost: 50, requires: ['n-hundred-prep'], note: 'The spine, one bone at a time.' },
     { id: 'n-teaser-prep', cardId: 'teaser-prep', pathId: 'core', x: 86, y: 40, cost: 90, requires: ['n-hundred-prep', 'n-roll-up'], note: 'Articulation meets balance.' },
 
     { id: 'n-scapular-glide', cardId: 'scapular-glide', pathId: 'shoulders', x: 23, y: 85, cost: 0, requires: ['n-breath'], note: 'Shoulder blades that glide.' },

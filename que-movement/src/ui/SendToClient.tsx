@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { POSITION_LABEL } from '../content/content';
-import { readHarmonies } from '../game/harmonies';
+import { SPECIAL_TEACHING, TEACHING } from '../content/teaching';
 import { doseLabel, sequenceStats } from '../game/rules';
 import { useStore } from '../game/store';
 import type { Sequence } from '../game/types';
@@ -9,20 +9,21 @@ import { useOverlays } from './Overlays';
 import { sfx } from './sound';
 
 /** A Sequence written out as a class plan a client can read on their phone. */
-export function classPlan(seq: Sequence, studio: string, note: string, content: ReturnType<typeof useStore>['content'], owned: string[]): string {
+export function classPlan(seq: Sequence, studio: string, note: string, content: ReturnType<typeof useStore>['content']): string {
   const st = sequenceStats(seq.slots, content);
-  const met = readHarmonies(seq.slots, content, owned).filter((r) => r.status === 'met').map((r) => r.def.name);
   const lines = st.views.map((v, i) => {
     const c = v.card;
-    const dose = c.kind === 'movement' ? `${POSITION_LABEL[c.position]} · ${doseLabel(c.dose)}` : c.kind === 'transition' ? 'Transition' : c.effect;
     const mods = v.modifiers.length ? ` (+ ${v.modifiers.map((m) => m.name).join(', ')})` : '';
-    return `${i + 1}. ${c.name}${mods} · ${dose}\n   ${c.shortCue}`;
+    if (c.kind === 'transition') return `${i + 1}. ${c.name} · Transition\n   ${SPECIAL_TEACHING[c.id]?.cues[0] ?? c.shortCue}`;
+    const dose = c.kind === 'movement' ? `${POSITION_LABEL[c.position]} · ${doseLabel(c.dose)}` : c.effect;
+    const easier = c.kind === 'movement' ? TEACHING[c.id]?.easier : undefined;
+    return `${i + 1}. ${c.name}${mods} · ${dose}\n   ${c.shortCue}${easier ? `\n   Easier: ${easier.name}. ${easier.how}` : ''}`;
   });
   const out = [seq.name, `A class plan from ${studio}`];
   if (seq.seeded) out.push(`Adapted from ${seq.author} (${seq.studio ?? 'In the Queue'})`);
   if (note) out.push('', note);
-  out.push('', ...lines, '', `About ${st.durationLabel}${met.length ? ` · ${met.join(', ')}` : ''}`);
-  out.push('Move at your own pace. Stop if anything hurts, and check with your teacher about any changes.', '— made with Que Movement');
+  out.push('', ...lines, '', `About ${st.durationLabel}`);
+  out.push('This plan is general guidance, not medical advice. Move at your own pace and stop if anything hurts. If you are pregnant or recently postnatal, recovering from injury or surgery, or have a health condition, check with your clinician before you start.', '— made with Que Movement');
   return out.join('\n');
 }
 
@@ -36,7 +37,7 @@ export function SendToClient({ seq }: { seq: Sequence }) {
   const [name, setName] = useState('');
   const [focus, setFocus] = useState('');
   const client = state.clients.find((c) => c.id === clientId);
-  const plan = classPlan(seq, state.studioName, note ? `${client ? `For ${client.name}: ` : ''}${note}` : '', content, state.ownedCardIds);
+  const plan = classPlan(seq, state.studioName, note ? `${client ? `For ${client.name}: ` : ''}${note}` : '', content);
   const history = state.sent.filter((p) => p.clientId === clientId);
 
   const addClient = () => {

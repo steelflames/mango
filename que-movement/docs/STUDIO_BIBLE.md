@@ -69,13 +69,13 @@ These came out of the first leads' meeting. Each one names the departments it bi
 |---|---|
 | **Arrive** | "Start with the breath, or something that asks nothing of you yet." |
 | **Rising Arc** | "Build to the hardest thing in the middle, never the first or the last." |
-| **Counterpose** | "Every flexion deserves an extension." |
+| **Counterpose** | "Every flexion deserves an extension. After you curl, open the front of the body." |
 | **Seamless** | "Don't make them scramble. Bridge the change of position." |
 | **Economy** | "Five or more exercises, two changes of position at most. Flow beats fuss." |
 | **Whole Body** | "Something for the back line, the centre and the shoulders." |
 | **Settle** | "Send them home calmer than they came." |
 
-*Council note:* card content and Harmonies are drafted to widely taught principles and **must be reviewed by the named educators before launch.** The game gives no medical advice; every card will carry modifications once the Council has written them.
+*Council note:* card content, teaching notes (`src/content/teaching.ts`) and Harmonies are drafted to widely taught principles and **must be reviewed by the named educators before launch.** Corrections, open recommendations and the sign-off checklist are in `docs/PILATES_COUNCIL_REVIEW.md`. The game gives no medical advice; every movement card carries an easier version and a take-care note.
 
 ## Roadmap
 
