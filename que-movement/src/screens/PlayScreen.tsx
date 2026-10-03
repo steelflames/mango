@@ -160,8 +160,8 @@ function Playing({ seq, play }: { seq: Sequence; play: PlayState }) {
           <button type="button" className={`timer-plus ${timerOpen ? 'is-on' : ''}`} onClick={() => setTimerOpen((o) => !o)} aria-expanded={timerOpen} aria-label="Change this card’s time" title="Change this card’s time" data-a="Change time">
             <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" aria-hidden="true"><circle cx="11" cy="13" r="7" /><path d="M11 9v4l2.5 1.5M9 3h4M19 3v5M16.5 5.5h5" /></svg>
           </button>
+          {timerOpen && <TimeWheel seconds={total} onChange={setTime} onClose={() => setTimerOpen(false)} />}
         </div>
-        {timerOpen && <TimeWheel seconds={total} onChange={setTime} />}
         <button type="button" className="btn btn--ghost btn--small" onClick={() => setHeld((h) => !h)} aria-disabled={isDone || undefined} aria-pressed={held}>
           {held ? '▶ Resume' : '❚❚ Pause'}
         </button>
@@ -178,10 +178,23 @@ function Playing({ seq, play }: { seq: Sequence; play: PlayState }) {
 const WHEEL = Array.from({ length: 20 }, (_, i) => (i + 1) * 15);
 
 /** −15 s, +15 s and the carnival wheel: a fairground drum you flick to the time you want. */
-function TimeWheel({ seconds, onChange }: { seconds: number; onChange: (s: number) => void }) {
+function TimeWheel({ seconds, onChange, onClose }: { seconds: number; onChange: (s: number) => void; onClose: () => void }) {
   const ref = useRef<HTMLDivElement>(null);
+  const box = useRef<HTMLDivElement>(null);
+  // A popover: a tap anywhere else puts it away.
+  useEffect(() => {
+    const away = (e: PointerEvent) => {
+      const t = e.target as HTMLElement;
+      if (box.current && !box.current.contains(t) && !t.closest('.timer-plus')) onClose();
+    };
+    document.addEventListener('pointerdown', away);
+    return () => document.removeEventListener('pointerdown', away);
+  }, [onClose]);
   const ROW = 34;
   const current = Math.max(15, Math.min(300, Math.round(seconds / 15) * 15));
+  // ±15 s lands on the next 15-second mark, so 0:51 goes to 0:45 or 1:00, not 0:30.
+  const down = Math.max(15, Math.ceil(seconds / 15) * 15 - 15);
+  const up = Math.min(600, Math.floor(seconds / 15) * 15 + 15);
   const last = useRef(current);
   const timer = useRef(0);
   useEffect(() => {
@@ -198,8 +211,8 @@ function TimeWheel({ seconds, onChange }: { seconds: number; onChange: (s: numbe
     timer.current = window.setTimeout(() => { if (v !== current) onChange(v); }, 220);
   };
   return (
-    <div className="wheel-box">
-      <button type="button" className="wheel-step" onClick={() => onChange(current - 15)} aria-label="Fifteen seconds less">−15s</button>
+    <div className="wheel-box" ref={box} role="dialog" aria-label="Card time">
+      <p className="wheel-now">This card <strong>{clock(seconds)}</strong></p>
       <div className="wheel" aria-label="Card time">
         <span className="wheel__awning" aria-hidden="true" />
         <div className="wheel__drum" ref={ref} onScroll={onScroll} tabIndex={0} role="listbox" aria-label="Seconds for this card"
@@ -210,7 +223,10 @@ function TimeWheel({ seconds, onChange }: { seconds: number; onChange: (s: numbe
         </div>
         <span className="wheel__window" aria-hidden="true" />
       </div>
-      <button type="button" className="wheel-step" onClick={() => onChange(current + 15)} aria-label="Fifteen seconds more">+15s</button>
+      <div className="wheel-steps">
+        <button type="button" className="wheel-step" onClick={() => onChange(down)} aria-label="Fifteen seconds less">−15s</button>
+        <button type="button" className="wheel-step" onClick={() => onChange(up)} aria-label="Fifteen seconds more">+15s</button>
+      </div>
     </div>
   );
 }

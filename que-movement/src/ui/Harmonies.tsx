@@ -3,7 +3,9 @@ import { useStore } from '../game/store';
 import type { Slot } from '../game/types';
 import { useOverlays } from './Overlays';
 
-const LEVELS = ['', 'Easy', 'Easy', 'Steady', 'Peak', 'Peak'];
+const LEVELS = ['', 'Easy', 'Easy', 'Steady', 'Strong', 'Peak'];
+/** Guide lines sit at the effort they name, so a bar touching one reads true. */
+const GUIDES: [number, string][] = [[1, 'Easy'], [3, 'Steady'], [5, 'Peak']];
 
 /** Effort across the Sequence: one bar per movement, the peak lit, the shape of the class behind it. */
 export function ClassArc({ slots, className = '', compact = false }: { slots: Slot[]; className?: string; compact?: boolean }) {
@@ -25,7 +27,7 @@ export function ClassArc({ slots, className = '', compact = false }: { slots: Sl
   const bands = [
     { k: 'arrive', label: 'Arrive', from: 0, to: Math.min(1, firstPeak) },
     { k: 'build', label: 'Build', from: Math.min(1, firstPeak), to: firstPeak },
-    { k: 'peak', label: 'Peak', from: firstPeak, to: lastPeak + 1 },
+    { k: 'peak', label: peak >= 3 ? 'Peak' : 'Middle', from: firstPeak, to: lastPeak + 1 },
     { k: 'settle', label: 'Settle', from: lastPeak + 1, to: n }
   ].filter((b) => b.to > b.from);
   return (
@@ -33,10 +35,13 @@ export function ClassArc({ slots, className = '', compact = false }: { slots: Sl
       aria-label={`Effort: ${moves.map((m) => `${m.name} ${m.intensity}`).join(', ')}, out of 5`}>
       {head}
       <div className="effort__plot">
-        {!compact && <span className="effort__axis" aria-hidden="true"><i>Peak</i><i>Steady</i><i>Easy</i></span>}
         <div className="effort__area">
-          {bands.map((b) => <span key={b.k} className={`effort__band is-${b.k}`} style={{ left: pct(b.from), width: pct(b.to - b.from) }}>{!compact && <em>{b.label}</em>}</span>)}
-          <span className="effort__guide" style={{ bottom: '80%' }} /><span className="effort__guide" style={{ bottom: '50%' }} /><span className="effort__guide" style={{ bottom: '20%' }} />
+          <div className="effort__lanes" aria-hidden="true">
+            {bands.map((b) => <span key={b.k} className={`effort__band is-${b.k}`} style={{ left: pct(b.from), width: pct(b.to - b.from) }} />)}
+          </div>
+          <div className="effort__grid" aria-hidden="true">
+            {GUIDES.map(([v, label]) => <span key={v} className="effort__guide" style={{ bottom: `${(v / 5) * 100}%` }}>{!compact && <i>{label}</i>}</span>)}
+          </div>
           <div className="effort__bars">
             {arc.map((a, i) => (
               <span key={i} className="effort__col" tabIndex={compact ? -1 : 0}>
@@ -45,11 +50,16 @@ export function ClassArc({ slots, className = '', compact = false }: { slots: Sl
                     {a.intensity === peak && peak >= 3 && <span className="effort__lantern" aria-hidden="true" />}
                   </span>
                 ) : <span className="effort__seam" />}
-                {!compact && <span className="effort__tip" role="tooltip">{i + 1}. {a.name}<small>{a.kind === 'movement' ? `Effort ${a.intensity} of 5 · ${LEVELS[a.intensity]}` : 'Transition'}</small></span>}
+                {!compact && <span className="effort__tip" role="tooltip">{i + 1}. {a.name}<small>{a.kind === 'movement' ? `Effort ${a.intensity} of 5 · ${LEVELS[a.intensity]}` : 'Transition: bridges a change of position'}</small></span>}
               </span>
             ))}
           </div>
         </div>
+        {!compact && (
+          <div className="effort__phases" aria-hidden="true">
+            {bands.map((b) => <span key={b.k} className={`is-${b.k}`} style={{ left: pct(b.from), width: pct(b.to - b.from) }}>{b.label}</span>)}
+          </div>
+        )}
       </div>
     </div>
   );
@@ -64,13 +74,13 @@ export function HarmonyRow({ slots, readings: given }: { slots: Slot[]; readings
   return (
     <div className="harm">
       <p className="harm__head">
-        <strong>Harmonies</strong><span>{met} of {readings.length}</span>
+        <strong>Harmonies</strong><span className="harm__count">{met} of {readings.length}</span>
         <button type="button" className="harm__all" onClick={() => openSheet({ eyebrow: 'The Pilates Council', title: 'Harmonies', body: <HarmonySheet slots={slots} /> })} data-a="All Harmonies">All notes</button>
       </p>
       <div className="harm__row">
         {readings.map((r) => (
           <span key={r.def.id} className={`harm__item is-${r.status}`} tabIndex={0} aria-label={`${r.def.name}, ${r.status === 'met' ? 'in this Sequence' : r.hint ?? 'not in play yet'}`}>
-            <span className="hrow__glyph" aria-hidden="true">{r.def.glyph}</span>
+            <span className={`hrow__glyph is-${r.status}`} aria-hidden="true">{r.def.glyph}</span>
             <span className="harm__tip" role="tooltip">
               <strong>{r.def.name} <em>+{r.def.points}</em></strong>
               <q>{r.def.says}</q>

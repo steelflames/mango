@@ -10,6 +10,8 @@ export interface Slot {
   modifiers: string[];
   /** Seconds this step takes, learned from performing it or set by hand. */
   durationOverride?: number;
+  /** Ran well short of plan once. A second real short run is what changes the time. */
+  shortSeen?: boolean;
 }
 
 export interface Analytics {

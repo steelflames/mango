@@ -40,10 +40,10 @@ export function Sidebar() {
     const n = collectionCards(id, state, content).length;
     return (
       <button key={id} type="button" className={`coll ${on ? 'is-on' : ''}`} aria-current={on || undefined} onClick={() => setBuilder({ coll: id, level: id === 'transition' || id === 'progression' ? 'all' : builder.level })}
-        aria-label={`${label}, ${n} Qcards`} title={label} data-a={on ? 'Showing' : `Show ${label}`}>
+        aria-label={id === 'bookcase' ? label : `${label}, ${n} Qcards`} title={label} data-a={on ? 'Showing' : `Show ${label}`}>
         <CollArt coll={id} state={state} content={content} />
         <span className="coll__name">{label}</span>
-        <span className="coll__count" aria-hidden="true">{n}</span>
+        {id !== 'bookcase' && <span className="coll__count" aria-hidden="true">{n}</span>}
       </button>
     );
   };
@@ -60,7 +60,10 @@ export function Sidebar() {
       {coll('transition', 'Transitions')}
       {coll('progression', 'Progressions')}
       {coll('archive', 'Archive')}
-      <p className="side-label">Custom Decks <span className="side-label__n">{shelf.length} of {DECK_SLOTS}</span></p>
+      <p className="side-label side-label--decks">
+        <span>Custom Decks</span>
+        <span className="slots" aria-label={`${shelf.length} of ${DECK_SLOTS} slots used`}>{Array.from({ length: DECK_SLOTS }, (_, i) => <i key={i} className={i < shelf.length ? 'is-full' : ''} />)}</span>
+      </p>
       {shelf.map((d) => {
         const on = current === d.id;
         const primary = d.id === state.primaryDeckId;
@@ -78,14 +81,20 @@ export function Sidebar() {
           </div>
         );
       })}
-      {Array.from({ length: Math.max(0, DECK_SLOTS - shelf.length) }, (_, i) => (
-        <button key={`empty-${i}`} type="button" className="deck-slot" onClick={() => void newDeck()} data-a="New deck"><PlusIcon /> New deck</button>
-      ))}
-      <button type="button" className="tin-btn" onClick={() => openSheet({ eyebrow: 'Decks', title: 'Deck Library', body: <DeckLibrary /> })} data-a="Open the tin">
+      {shelf.length < DECK_SLOTS ? (
+        <button type="button" className="deck-slot" onClick={() => void newDeck()} aria-label={`New deck, ${DECK_SLOTS - shelf.length} slots free`} title="New deck" data-a="New deck">
+          <PlusIcon /><span className="deck-slot__label">New deck</span>
+        </button>
+      ) : (
+        <button type="button" className="deck-slot deck-slot--full" onClick={() => void newDeck()} title="New deck (into the Deck Library)" data-a="New deck">
+          <PlusIcon /><span className="deck-slot__label">New deck<small>Shelf full: it goes in the tin</small></span>
+        </button>
+      )}
+      <button type="button" className="tin-btn" aria-label={`Deck Library, ${filed.length} filed`} title="Deck Library" onClick={() => openSheet({ eyebrow: 'Decks', title: 'Deck Library', body: <DeckLibrary /> })} data-a="Open the tin">
         <span className="tin-btn__tin" aria-hidden="true" />
-        <span>Deck Library<small>{filed.length ? `${filed.length} filed away` : 'File decks here when the shelf is full'}</small></span>
+        <span className="tin-btn__text">Deck Library<small>{filed.length ? `${filed.length} filed away` : 'Extra decks, filed'}</small></span>
       </button>
-      <p className="side-label side-label--row"><span>In the Queue</span><button type="button" className="link-btn" onClick={() => openSheet({ eyebrow: 'Repertoire', title: 'Your Sequences', body: <YourSequences /> })}>See all</button></p>
+      <p className="side-label side-label--queue"><span>In the Queue</span><button type="button" className="link-btn" onClick={() => openSheet({ eyebrow: 'Repertoire', title: 'Your Sequences', body: <YourSequences /> })}>See all</button></p>
       <ul className="folder__list">
         {recent.map((x) => <SeqRow key={x.id} seq={x} />)}
         {!recent.length && <li className="folder__empty">Saved Sequences land here.</li>}
@@ -117,7 +126,12 @@ function DeckLibrary() {
             <button type="button" className="btn btn--ghost btn--sm" onClick={(e) => pull(e.currentTarget, d)}>Pull out</button>
           </div>
         ))}
-        {!filed.length && <p className="tin__empty">Nothing filed yet. From a deck’s ⋯ menu choose “File in the Deck Library”.</p>}
+        {!filed.length && (
+          <div className="tin__empty">
+            <span className="index-card index-card--blank" aria-hidden="true" /><span className="index-card index-card--blank" aria-hidden="true" />
+            <p>Nothing filed yet. From a deck’s ⋯ menu, choose “File in the Deck Library”. It keeps every Qcard and frees a slot on the shelf.</p>
+          </div>
+        )}
       </div>
       <p className="tin__note">Six decks sit on the shelf. The tin holds as many as you like.</p>
     </div>

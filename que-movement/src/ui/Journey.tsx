@@ -93,7 +93,7 @@ function Quests() {
     <section className="quests">
       <div className="quests__head">
         <h3 className="arrange__label">Daily quests</h3>
-        <button type="button" className="chip chip--small" aria-expanded={tuning} onClick={() => setTuning((t) => !t)}>{tuning ? 'Done' : 'Customise'}</button>
+        <button type="button" className="chip chip--small" aria-expanded={tuning} onClick={() => setTuning((t) => !t)}>{tuning ? 'Close settings' : 'Customise'} <span aria-hidden="true">{tuning ? '▴' : '▾'}</span></button>
       </div>
       <p className="muted journey__note">{paidLeft ? `Clear one and another arrives. ${paidLeft} more paid today; after that they keep coming, just for you.` : 'Today’s paid quests are done. These are just for you now.'} Skipping costs nothing.</p>
       {tuning && <QuestSettings />}
@@ -105,10 +105,10 @@ function Quests() {
           return (
             <li key={id}>
               <span className="intentions__tick" aria-hidden="true">{type?.glyph}</span>
-              <span>{t.text}{t.event && <small className="quests__auto">Clears itself when you do it in the game</small>}</span>
+              <span>{t.text}<small className="quests__auto">{t.event ? 'Clears itself when you do it in the game' : `${type?.label ?? 'Off the mat'} · tick it when it’s done`}</small></span>
               <span className="quests__actions">
                 <strong>+{paidLeft ? t.points : 0}</strong>
-                {!t.event && <button type="button" className="btn btn--primary btn--small" onClick={() => { sfx.harmony(2); dispatch({ type: 'quest/done', id }); }}>Done</button>}
+                {!t.event && <button type="button" className="quests__done" onClick={() => { sfx.harmony(2); dispatch({ type: 'quest/done', id }); }} aria-label={`Done: ${t.text}`} title="I did it"><span aria-hidden="true">✓</span></button>}
                 <button type="button" className="quests__skip" onClick={() => dispatch({ type: 'quest/skip', id })} aria-label={`Skip: ${t.text}`}>Skip</button>
               </span>
             </li>

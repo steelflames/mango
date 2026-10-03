@@ -19,6 +19,8 @@ export const DEFAULT_THEME = 'night-market';
 export const PRIMARY_DECK = 'd-primary';
 /** Custom deck slots on the shelf; the rest live in the Deck Library. */
 export const DECK_SLOTS = 6;
+/** Below this, finishing a card is a tap-through, not a real run of it. */
+const MIN_REAL_SECONDS = 10;
 
 export function freshState(): GameState {
   const starters = CONTENT.branch.nodes.filter((n) => n.cost === 0).map((n) => n.cardId);
@@ -341,20 +343,28 @@ export function reduce(state: GameState, action: Action, content: Content = CONT
       const earned = peakSlotIds(seq.slots, content).includes(slot.slotId) ? PEAK_POINTS : 0;
       const counts = { ...state.completedCounts };
       for (const id of [view.card.id, ...view.modifiers.map((m) => m.id)]) counts[id] = (counts[id] ?? 0) + 1;
-      // Time learns from you: well off the plan, the step keeps what you actually took.
+      // Time learns from you. Longer than planned is learned at once: you needed it. Shorter has to
+      // happen twice, and a tap-through under 10 s never counts, so skipping ahead can't shrink a class.
       let learned: PlayState['learned'] = null;
+      let shortSeen = false;
       const el = action.elapsed;
-      if (el !== undefined && Math.abs(el - view.duration) >= Math.max(15, view.duration * 0.25)) {
-        const seconds = round15(el);
-        if (seconds !== view.duration) learned = { slotId: slot.slotId, seconds };
+      const off = el !== undefined && Math.abs(el - view.duration) >= Math.max(15, view.duration * 0.25);
+      if (off && el! > view.duration) learned = { slotId: slot.slotId, seconds: round15(el!) };
+      else if (off && el! >= MIN_REAL_SECONDS) {
+        if (slot.shortSeen) learned = { slotId: slot.slotId, seconds: round15(el!) };
+        else shortSeen = true;
       }
+      if (learned && learned.seconds === view.duration) learned = null;
       let next: GameState = {
         ...state,
         ...addPoints(state, earned),
         completedCounts: counts,
         play: { ...play, pointsEarned: play.pointsEarned + earned, peakPoints: (play.peakPoints ?? 0) + earned, completedSlotIds: [...play.completedSlotIds, slot.slotId], learned }
       };
-      if (learned) next = updateSeq(next, seq.id, (s) => ({ ...s, slots: s.slots.map((x) => (x.slotId === learned!.slotId ? { ...x, durationOverride: learned!.seconds } : x)) }));
+      const tapThrough = el !== undefined && el < MIN_REAL_SECONDS;
+      if (!tapThrough && (learned || shortSeen || slot.shortSeen)) {
+        next = updateSeq(next, seq.id, (s) => ({ ...s, slots: s.slots.map((x) => (x.slotId !== slot.slotId ? x : { ...x, durationOverride: learned ? learned.seconds : x.durationOverride, shortSeen: shortSeen || undefined })) }));
+      }
       const p = next.play!;
       if (p.completedSlotIds.length !== seq.slots.length) return next;
       // The whole Sequence is done: the teachers score it, then record it and check milestones.
@@ -458,7 +468,7 @@ export function reduce(state: GameState, action: Action, content: Content = CONT
     case 'ui/dismissQuest':
       return { ...state, questFlash: null };
     case 'sequence/slotTime':
-      return updateSeq(state, action.sequenceId, (s) => ({ ...s, slots: s.slots.map((x) => (x.slotId === action.slotId ? { ...x, durationOverride: Math.max(15, Math.min(600, action.seconds)) } : x)) }));
+      return updateSeq(state, action.sequenceId, (s) => ({ ...s, slots: s.slots.map((x) => (x.slotId === action.slotId ? { ...x, durationOverride: Math.max(15, Math.min(600, action.seconds)), shortSeen: undefined } : x)) }));
     case 'sequence/reorder': {
       const seq = state.sequences.find((s) => s.id === action.sequenceId);
       if (!seq) return state;

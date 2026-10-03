@@ -12,6 +12,7 @@ import { useOverlays, type MenuItem } from '../../ui/Overlays';
 import { useDraft } from '../../ui/useDraft';
 import { useCardDrag } from './drag';
 import { ClassArc, HarmonyRow } from '../../ui/Harmonies';
+import { readHarmonies } from '../../game/harmonies';
 import { sfx } from '../../ui/sound';
 import type { Slot } from '../../game/types';
 import { YourSequences } from './Sidebar';
@@ -34,10 +35,17 @@ export function SequencePanel() {
   const slots = state.draftSlots;
   const stats = sequenceStats(slots, content);
   const { seams, transitionStatus, route } = readSeams(slots, content);
+  const metCount = readHarmonies(slots, content, state.ownedCardIds).filter((r) => r.status === 'met').length;
   const listRef = useRef<HTMLOListElement>(null);
   const headMore = useRef<HTMLButtonElement>(null);
   const [moving, setMoving] = useState<{ slotId: string; from: number } | null>(null);
   const [drag, setDrag] = useState<Drag | null>(null);
+  // Folded by default on short screens, where the steps need the room; after that, your choice sticks.
+  const [folded, setFoldedState] = useState(() => {
+    try { const v = localStorage.getItem('que:sequencer-folded'); if (v !== null) return v === '1'; } catch { /* private window */ }
+    return window.innerHeight < 760;
+  });
+  const setFolded = (v: boolean) => { setFoldedState(v); try { localStorage.setItem('que:sequencer-folded', v ? '1' : '0'); } catch { /* private window */ } };
   const [undo, setUndo] = useState<{ slot: Slot; index: number; name: string; key: number } | null>(null);
   const panelRef = useRef<HTMLElement>(null);
   useEffect(() => { if (!undo) return; const t = window.setTimeout(() => setUndo(null), 5000); return () => window.clearTimeout(t); }, [undo]);
@@ -171,10 +179,17 @@ export function SequencePanel() {
         <span className="sr-only">Name this Sequence</span>
         <input value={state.draftName} maxLength={48} placeholder="Name this Sequence…" onChange={(e) => dispatch({ type: 'draft/name', name: e.target.value })} />
       </label>
-      <div className="queue__stats">
-        <div className="queue__nums"><span><strong>{slots.length}</strong> of {RULES.maxSteps} steps</span><span><strong>{clock(stats.durationSeconds)}</strong> total</span></div>
-        <ClassArc slots={slots} />
-        <HarmonyRow slots={slots} />
+      <div className={`queue__stats ${folded ? 'is-folded' : ''}`}>
+        <div className="queue__nums">
+          <span>{folded
+            ? <><strong>{slots.length}</strong> steps · <strong>{clock(stats.durationSeconds)}</strong> · <strong>{metCount}</strong>/7 Harmonies</>
+            : <><strong>{slots.length}</strong> of {RULES.maxSteps} steps · <strong>{clock(stats.durationSeconds)}</strong></>}</span>
+          <button type="button" className="queue__fold" onClick={() => setFolded(!folded)} aria-expanded={!folded} aria-label={folded ? 'Show the effort chart and Harmonies' : 'Hide the effort chart and Harmonies'} data-a={folded ? 'Show the shape' : 'Hide the shape'}>
+            Shape <span aria-hidden="true">{folded ? '▾' : '▴'}</span>
+          </button>
+        </div>
+        {!folded && <ClassArc slots={slots} />}
+        {!folded && <HarmonyRow slots={slots} />}
       </div>
 
       <ol ref={listRef} className={`queue__list scroll ${drag?.active ? 'is-dragging' : ''} ${cardDrag ? 'is-drop-target' : ''} ${cardDrag?.target && cardDrag.target.kind !== 'deck' ? 'is-over' : ''}`} data-drop-queue="">

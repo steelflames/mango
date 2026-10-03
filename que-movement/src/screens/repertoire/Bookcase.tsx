@@ -27,7 +27,7 @@ export function Bookcase() {
   const load = useLoadSequence();
   const remix = useRemixSequence();
   const owned = content.cards.filter((c) => c.kind === 'movement' && state.ownedCardIds.includes(c.id) && !state.archivedCardIds.includes(c.id));
-  const used = new Set(state.sequences.filter((s) => !s.seeded).flatMap((s) => s.slots.map((x) => x.cardId)));
+  const used = new Set([...state.draftSlots.map((x) => x.cardId), ...state.sequences.filter((s) => !s.seeded).flatMap((s) => s.slots.map((x) => x.cardId))]);
   const toLearn = content.branch.nodes.filter((n) => !state.ownedCardIds.includes(n.cardId)).map((n) => content.cardById[n.cardId]).filter(Boolean) as Card[];
   const unused = owned.filter((c) => !used.has(c.id));
   const saved = state.savedSequenceIds.map((id) => state.sequences.find((s) => s.id === id)).filter(Boolean) as Sequence[];
@@ -35,6 +35,13 @@ export function Bookcase() {
   const unfinished = state.sequences.filter((s) => s.analytics.completionPercents.some((p) => p < 100) && !s.analytics.completedPlays);
   const featured = community[0];
 
+  const lockedTile = (c: Card) => (
+    <button key={c.id} type="button" className="shelf-card is-locked" onClick={() => go('technique')} title={`${c.name}: learn it in Technique`} data-a="Go to Technique">
+      <span className="shelf-card__frame"><Art card={c} content={content} dim className="shelf-card__art" /><span className="shelf-card__lock" aria-hidden="true">✧ Learn</span></span>
+      <span className="shelf-card__name">{c.name}</span>
+      <span className="shelf-card__hint">In Technique</span>
+    </button>
+  );
   const cardTile = (c: Card, hint: string) => (
     <button key={c.id} type="button" className="shelf-card" onClick={() => openSheet({ eyebrow: 'Qcard', title: c.name, body: <CardDetails card={c} /> })}
       onDoubleClick={() => draft.add(c)} title={`${c.name}. ${hint}`} data-a="Look closer">
@@ -70,7 +77,7 @@ export function Bookcase() {
           </div>
         </section>
       )}
-      {toLearn.length > 0 && <Row title="Techniques you might love" sub="Learn them in Techniques.">{toLearn.slice(0, 10).map((c) => cardTile(c, 'Not learned yet'))}</Row>}
+      {toLearn.length > 0 && <Row title="Techniques you might love" sub="Not learned yet. Each becomes a Qcard.">{toLearn.slice(0, 10).map(lockedTile)}</Row>}
       <Row title="Challenge Decks" sub="Builds with rules. The first, Two Peaks, arrives with Swan Dive and Corkscrew.">
         <div className="shelf-card shelf-card--soon" aria-label="Coming soon"><span className="shelf-card__art shelf-soon">✦ ✦</span><span className="shelf-card__name">Two Peaks</span><span className="shelf-card__hint">Coming with the Council’s Swan Dive &amp; Corkscrew</span></div>
       </Row>
@@ -84,12 +91,12 @@ export function Bookcase() {
             <button key={p.id} type="button" className="shelf-card shelf-card--seq" onClick={() => setBuilder({ coll: 'all', query: p.name })} data-a="Show">
               <Mosaic cardIds={cards.map((c) => c.id)} content={content} className="shelf-card__art" />
               <span className="shelf-card__name">{p.name}</span>
-              <span className="shelf-card__hint">{cards.length} Qcards</span>
+              <span className="shelf-card__hint">{cards.length} Qcard{cards.length === 1 ? '' : 's'}</span>
             </button>
           );
         })}
       </Row>
-      {unused.length > 0 && <Row title="Inspiration" sub="Learned, never built with. Double-tap to add.">{unused.slice(0, 10).map((c) => cardTile(c, 'Not in a Sequence yet'))}</Row>}
+      {unused.length > 0 && <Row title="Inspiration" sub="Learned, not yet in a Sequence. Tap for details, double-tap to add.">{unused.slice(0, 10).map((c) => cardTile(c, 'Waiting for a Sequence'))}</Row>}
     </div>
   );
 }

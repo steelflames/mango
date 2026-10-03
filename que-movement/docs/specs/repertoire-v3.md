@@ -12,7 +12,8 @@ Status: decisions confirmed with the client. Section 3.1 (Challenge Decks) waits
 
 ## 1. The Sequencer
 1. No Teacher's Note in the panel (teaching lives in card details and Play).
-2. **Effort chart**: title "Effort", subtitle "How hard each step works, 1 to 5"; guide lines Easy / Steady / Peak; one bar per movement coloured by path; transitions as baseline diamonds; peak marked with a lantern; background bands Arrive · Build · Peak · Settle; tooltip per bar ("3. Dead Bug · Effort 2 of 5").
+2. **Effort chart**: title "Effort", subtitle "How hard each step works, 1 to 5"; guide lines at effort 1, 3 and 5 (Easy / Steady / Peak), so a bar touching a line reads true; one bar per movement coloured by path; transitions as baseline diamonds; peak marked with a lantern; phases Arrive · Build · Peak · Settle shaded behind and labelled under the bars ("Middle" when nothing reaches effort 3); tooltip per bar ("3. Dead Bug · Effort 2 of 5").
+   - **Shape ▴/▾** folds the chart and Harmonies into one line ("4 steps · 5:12 · 4/7 Harmonies") so the steps get the room. Folded by default on screens under 760 px tall; your choice is remembered.
 3. **Harmonies** headline ("Harmonies · 5 of 7"); each icon has a tooltip: name and points, the teacher's quote, status or what's missing.
 4. **Insert above the selected step** when a step is selected; append when nothing is.
 5. **Drag a row** to reorder; drag it past the panel edge and it turns red ("Release to remove"); release removes it with a 5-second Undo.
@@ -20,12 +21,12 @@ Status: decisions confirmed with the client. Section 3.1 (Challenge Decks) waits
 
 ## 2. Decks (left menu, one scrolling column)
 1. Collection: Bookcase, All Qcards, Transitions, Progressions, Archive.
-2. **Custom Decks: six slots.** Empty slots are dashed "+ New deck". Rename and reorder (Move up / Move down) from ⋯. The primary deck keeps its ★.
+2. **Custom Decks: six slots**, shown as a six-pip meter beside the heading, with a single dashed "+ New deck" row (when the shelf is full it says the new deck goes in the tin). Rename and reorder (Move up / Move down) from ⋯. The primary deck keeps its ★ and can't be filed.
 3. **Deck Library: a recipe tin of index cards** for decks beyond six. File a deck into the tin; pull one out to swap it into a slot. Unlimited.
 4. **In the Queue:** the 3 most recently saved Sequences (yours or saved from the community), plus "See all".
 
 ## 3. Bookcase (Netflix-style browse page)
-Rows of large full-art cards: Featured · Techniques you might love · Challenge Decks · Saved from the Queue · For you · Continue (unfinished performances) · Collections (Restorative, Neck & Shoulder Ease, Foundational, Foundational but Fun, Foundational + Spicy) · Inspiration (Techniques you've learned but never built with, paired with community Sequences that use them).
+Rows of large full-art cards (Techniques not yet learned are shown dimmed with a "Learn" tag and open Technique): Featured · Techniques you might love · Challenge Decks · Saved from the Queue · For you · Continue (unfinished performances) · Collections (Restorative, Neck & Shoulder Ease, Foundational, Foundational but Fun, Foundational + Spicy) · Inspiration (Techniques you've learned but never built with, paired with community Sequences that use them).
 
 ### 3.1 Challenge Decks (pending content)
 Constrained builds: allowed pool, max steps, required peaks, optional required Harmonies. Flagship "Two Peaks": Swan Dive and Corkscrew as the two peaks. Needs both cards from the Council and new art. Corkscrew is the first rotation card.
@@ -33,8 +34,11 @@ Constrained builds: allowed pool, max steps, required peaks, optional required H
 ## 4. Play
 1. **One button: Complete & Next.** A small ‹ Back stays. No Skip.
 2. **Review** button: a text-only, music-app-style list of the Sequence. Reorder steps, edit each step's time (±15 s), jump to a step.
-3. **Time learns from you, both ways.** If a card's real time differs from its plan by 25% or more (and at least 15 s), the step's time is saved to the Sequence as the real time rounded to the nearest 15 s (minimum 15 s).
-4. **Timer +**: a timer icon with a plus beside the ring opens −15 s / +15 s and a carnival wheel (drum picker, 0:15 to 5:00 in 15 s steps, ticking detents).
+3. **Time learns from you, both ways, but asymmetrically.** A difference counts when it's 25% or more of the plan and at least 15 s; the new time is the real time rounded to the nearest 15 s (minimum 15 s).
+   - **Longer** is learned at once: you needed it.
+   - **Shorter** is learned on the second real short run in a row. A card finished in under 10 s is a tap-through and never counts, so skipping ahead can't shrink a class.
+   - Setting a time by hand (Review or Timer +) clears any pending short run.
+4. **Timer +**: a timer icon with a plus beside the ring opens a popover: the card's current time, a carnival wheel (drum picker, 0:15 to 5:00 in 15 s steps, ticking detents) and −15 s / +15 s, which land on the next 15-second mark (0:51 → 0:45 or 1:00). Tap anywhere else to close.
 5. **No streak.** In its place, **Still to earn**: rewards this Sequence can give that you haven't earned yet (Harmonies it hasn't earned before, badges within reach, Techniques it would open).
 
 ### 4.1 Scoring
