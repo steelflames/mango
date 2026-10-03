@@ -29,7 +29,6 @@ export function TopBar() {
   const { mode, openSettings, settingsOpen } = useInput();
   const { go, section } = useNav();
   const next = nextStep(state, content);
-  const playing = !!state.play && !state.play.finished;
   return (
     <header className="topbar">
       <div className="brand" aria-label="Que Movement">
@@ -51,12 +50,6 @@ export function TopBar() {
           <span className="hud__value"><span className="hud__spark" aria-hidden="true">✦</span>{state.points}</span>
           <span className="hud__label">Points</span>
         </div>
-        {playing && (
-          <div className={`hud__item ${state.streak > 0 ? 'is-hot' : ''}`} title="Streak inside the current Sequence">
-            <span className="hud__value">{state.streak}</span>
-            <span className="hud__label">Streak</span>
-          </div>
-        )}
       </div>
       <button type="button" className="settings-btn" aria-haspopup="dialog" aria-expanded={settingsOpen} title="Settings (Esc)" onClick={openSettings}>
         <GearIcon />

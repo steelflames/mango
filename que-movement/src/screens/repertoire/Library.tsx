@@ -13,6 +13,7 @@ import { fly, sequenceLanding } from '../../ui/fly';
 import { useCardDrag } from './drag';
 import { collectionName, libraryGroups, resolveColl, SORTS } from './library';
 import { useDeckMenu } from './Sidebar';
+import { Bookcase } from './Bookcase';
 
 const LEVELS: [BuilderView['level'], string][] = [['all', 'All levels'], ['foundation', 'Foundation'], ['working', 'Working'], ['challenge', 'Challenge']];
 
@@ -51,6 +52,13 @@ export function Library() {
       : coll === 'archive' ? 'Archived Qcards are kept safe, just out of the way. Restore them from their ⋯ menu.'
         : coll === 'all' ? 'Every Qcard you know. Drag one onto a deck in the sidebar to keep it close.'
           : null;
+
+  if (coll === 'bookcase') return (
+    <section className="lib-main" aria-label="Bookcase">
+      <div className="lib-title"><div><p className="eyebrow">Collection</p><h2 className="lib-title__name">Bookcase</h2></div></div>
+      <Bookcase />
+    </section>
+  );
 
   return (
     <section className="lib-main" aria-label={`${collectionName(view.coll, state)} Qcards`}>

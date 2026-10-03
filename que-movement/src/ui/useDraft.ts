@@ -45,9 +45,11 @@ export function useDraft() {
     }
     if (!isOpen(card)) { toast(`${card.name} isn’t in your Repertoire yet. Learn it in Technique.`); return false; }
     if (full) { toast(`A Sequence holds up to ${RULES.maxSteps} steps.`); return false; }
+    // With a step selected, new cards slot in just above it.
+    if (index === undefined && selIndex >= 0) index = selIndex;
     dispatch({ type: 'draft/add', cardId: card.id, index });
     sfx.add(slots.length);
-    const where = index === 0 ? ' at the start' : index !== undefined && index < slots.length ? ` as step ${index + 1}` : '';
+    const where = index === 0 && slots.length ? ' at the start' : index !== undefined && index < slots.length ? ` as step ${index + 1}` : '';
     toast(`${card.name} added${where} · ${slots.length + 1} of ${RULES.maxSteps}`);
     return true;
   };

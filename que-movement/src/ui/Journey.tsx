@@ -1,5 +1,6 @@
-import { useEffect } from 'react';
-import { INTENTIONS, MAX_RANK, RANK_XP, rankGift } from '../content/progress';
+import { useEffect, useState } from 'react';
+import { MAX_RANK, RANK_XP, rankGift } from '../content/progress';
+import { PAID_CLEARS_PER_DAY, PRESETS, QUEST_TYPES, questById } from '../content/quests';
 import { rankOf, rankRewards } from '../game/rules';
 import { useStore } from '../game/store';
 import { useCeremony } from './fly';
@@ -23,19 +24,19 @@ export function RankRing({ size = 40 }: { size?: number }) {
   );
 }
 
-/** Rank and today's intentions, in the top bar. Opens the Journey. */
+/** Rank and today's quests, in the top bar. Opens the Journey. */
 export function JourneyButton() {
   const { state } = useStore();
   const { openSheet } = useOverlays();
   const r = rankOf(state.lifetimePoints);
-  const ints = state.intentions;
+  const q = state.quests;
   return (
     <button type="button" className="journey-btn" onClick={() => openSheet({ eyebrow: 'Your journey', title: `Practice Rank ${r.rank}`, body: <JourneySheet /> })}
-      aria-label={`Practice Rank ${r.rank}, ${ints.done.length} of 3 intentions today. Open your journey`} data-a="Your journey">
+      aria-label={`Practice Rank ${r.rank}, ${q.active.length} quests waiting. Open your journey`} data-a="Your journey">
       <RankRing />
       <span className="journey-btn__text">
-        <span className="journey-btn__label">Rank</span>
-        <span className="journey-btn__dots" aria-hidden="true">{ints.ids.map((id) => <i key={id} className={ints.done.includes(id) ? 'is-done' : ''} />)}</span>
+        <span className="journey-btn__label">Rank · Quests</span>
+        <span className="journey-btn__dots" aria-hidden="true">{q.active.map((id) => <i key={id} />)}{Array.from({ length: Math.min(q.cleared, PAID_CLEARS_PER_DAY) }, (_, i) => <i key={`c${i}`} className="is-done" />)}</span>
       </span>
     </button>
   );
@@ -44,9 +45,8 @@ export function JourneyButton() {
 export function JourneySheet() {
   const { state, dispatch } = useStore();
   const r = rankOf(state.lifetimePoints);
-  const ints = state.intentions;
   const next = Math.min(MAX_RANK, r.rank + 1);
-  useEffect(() => { dispatch({ type: 'intentions/refresh' }); }, [dispatch]);
+  useEffect(() => { dispatch({ type: 'quests/refresh' }); }, [dispatch]);
   return (
     <div className="journey">
       <section className="journey__rank">
@@ -60,17 +60,7 @@ export function JourneySheet() {
       {r.rank > state.rankClaimed && (
         <button type="button" className="btn btn--primary btn--big journey__claim" onClick={() => { sfx.badge(); dispatch({ type: 'rank/claim' }); }}>Claim Rank {state.rankClaimed + 1} gifts · ✦ {rankGift(state.rankClaimed + 1)}</button>
       )}
-      <section>
-        <h3 className="arrange__label">Today’s intentions</h3>
-        <p className="muted journey__note">Three invitations a day. Missing one costs nothing; tomorrow brings three more.</p>
-        <ul className="intentions">
-          {ints.ids.map((id) => {
-            const def = INTENTIONS.find((x) => x.id === id)!;
-            const done = ints.done.includes(id);
-            return <li key={id} className={done ? 'is-done' : ''}><span className="intentions__tick" aria-hidden="true">{done ? '✓' : '☾'}</span><span>{def.text}</span><strong>+{def.points}</strong></li>;
-          })}
-        </ul>
-      </section>
+      <Quests />
       <section>
         <h3 className="arrange__label">The road ahead</h3>
         <ol className="ranks">
@@ -93,26 +83,88 @@ export function JourneySheet() {
   );
 }
 
-/** A moment's ribbon when an intention is met. Never a modal, never in the way. */
-export function IntentionRibbon() {
+/** Daily Quests: on the mat and off it. Clear one and another arrives. */
+function Quests() {
+  const { state, dispatch } = useStore();
+  const [tuning, setTuning] = useState(false);
+  const q = state.quests;
+  const paidLeft = Math.max(0, PAID_CLEARS_PER_DAY - q.cleared);
+  return (
+    <section className="quests">
+      <div className="quests__head">
+        <h3 className="arrange__label">Daily quests</h3>
+        <button type="button" className="chip chip--small" aria-expanded={tuning} onClick={() => setTuning((t) => !t)}>{tuning ? 'Done' : 'Customise'}</button>
+      </div>
+      <p className="muted journey__note">{paidLeft ? `Clear one and another arrives. ${paidLeft} more paid today; after that they keep coming, just for you.` : 'Today’s paid quests are done. These are just for you now.'} Skipping costs nothing.</p>
+      {tuning && <QuestSettings />}
+      <ul className="intentions">
+        {q.active.map((id) => {
+          const t = questById(id);
+          if (!t) return null;
+          const type = QUEST_TYPES.find((x) => x.id === t.type);
+          return (
+            <li key={id}>
+              <span className="intentions__tick" aria-hidden="true">{type?.glyph}</span>
+              <span>{t.text}{t.event && <small className="quests__auto">Clears itself when you do it in the game</small>}</span>
+              <span className="quests__actions">
+                <strong>+{paidLeft ? t.points : 0}</strong>
+                {!t.event && <button type="button" className="btn btn--primary btn--small" onClick={() => { sfx.harmony(2); dispatch({ type: 'quest/done', id }); }}>Done</button>}
+                <button type="button" className="quests__skip" onClick={() => dispatch({ type: 'quest/skip', id })} aria-label={`Skip: ${t.text}`}>Skip</button>
+              </span>
+            </li>
+          );
+        })}
+      </ul>
+    </section>
+  );
+}
+
+function QuestSettings() {
+  const { state, dispatch } = useStore();
+  const q = state.quests;
+  return (
+    <div className="quest-settings">
+      <p className="field__label">Presets</p>
+      <div className="arrange__opts">
+        {PRESETS.map((p) => <button key={p.id} type="button" title={p.about} className={`chip ${q.preset === p.id ? 'is-on' : ''}`} aria-pressed={q.preset === p.id} onClick={() => dispatch({ type: 'quests/settings', preset: p.id })}>{p.label}</button>)}
+      </div>
+      <p className="muted quest-settings__about">{PRESETS.find((p) => p.id === q.preset)?.about} Presets choose the kinds of quest and their wording. They aren’t medical advice.</p>
+      <p className="field__label">Kinds of quest</p>
+      <div className="arrange__opts">
+        {QUEST_TYPES.map((t) => {
+          const on = q.types.includes(t.id);
+          return <button key={t.id} type="button" className={`chip ${on ? 'is-on' : ''}`} aria-pressed={on}
+            onClick={() => dispatch({ type: 'quests/settings', types: on ? q.types.filter((x) => x !== t.id) : [...q.types, t.id] })}>{t.glyph} {t.label}</button>;
+        })}
+      </div>
+      <p className="field__label">How many at once</p>
+      <div className="arrange__opts">
+        {[1, 2, 3, 4, 5].map((n) => <button key={n} type="button" className={`chip ${q.count === n ? 'is-on' : ''}`} aria-pressed={q.count === n} onClick={() => dispatch({ type: 'quests/settings', count: n })}>{n}</button>)}
+      </div>
+    </div>
+  );
+}
+
+/** A moment's ribbon when a quest is cleared. Never a modal, never in the way. */
+export function QuestRibbon() {
   const { state, dispatch } = useStore();
   const ceremony = useCeremony();
-  const flash = state.intentionFlash;
+  const flash = state.questFlash;
   const modal = state.pendingReveals.length > 0 || state.pendingMilestoneIds.length > 0 || rankOf(state.lifetimePoints).rank > state.rankClaimed;
   const blocked = ceremony || modal || (!!state.play && !state.play.finished);
   useEffect(() => {
     if (!flash || blocked) return;
     sfx.bell();
-    const t = window.setTimeout(() => dispatch({ type: 'ui/dismissIntention' }), 3600);
+    const t = window.setTimeout(() => dispatch({ type: 'ui/dismissQuest' }), 3600);
     return () => window.clearTimeout(t);
   }, [flash, blocked, dispatch]);
   if (!flash || blocked) return null;
-  const def = INTENTIONS.find((x) => x.id === flash);
+  const def = questById(flash.id);
   return (
-    <div className="ribbon" role="status" key={flash}>
+    <div className="ribbon" role="status" key={flash.id + state.quests.cleared}>
       <span className="ribbon__moon" aria-hidden="true">☾</span>
-      <span><small>Intention met</small>{def?.text}</span>
-      <strong>+{def?.points}</strong>
+      <span><small>Quest cleared</small>{def?.text}</span>
+      <strong>{flash.points ? `+${flash.points}` : '✓'}</strong>
     </div>
   );
 }

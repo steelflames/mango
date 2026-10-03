@@ -136,3 +136,11 @@ export function readHarmonies(slots: Slot[], content: Content, owned: string[]):
 export function harmonyPoints(readings: HarmonyReading[]): number {
   return readings.filter((r) => r.status === 'met').reduce((a, r) => a + r.def.points, 0);
 }
+
+/** Movement steps at the Sequence's peak effort (3 or more). Completing one pays PEAK_POINTS. */
+export function peakSlotIds(slots: Slot[], content: Content): string[] {
+  const arc = classArc(slots, content);
+  const peak = Math.max(0, ...arc.map((a) => a.intensity));
+  if (peak < 3) return [];
+  return slots.filter((_, i) => arc[i].kind === 'movement' && arc[i].intensity === peak).map((s) => s.slotId);
+}

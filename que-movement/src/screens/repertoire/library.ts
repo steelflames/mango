@@ -17,7 +17,7 @@ export const SORTS: { key: BuilderView['sortBy']; label: string; up: string; dow
   { key: 'az', label: 'A–Z', up: 'A to Z', down: 'Z to A' }
 ];
 
-export const SPECIAL_COLLS = ['all', 'transition', 'progression', 'archive'] as const;
+export const SPECIAL_COLLS = ['bookcase', 'all', 'transition', 'progression', 'archive'] as const;
 
 /** 'primary' is a stand-in for whichever deck is primary right now. */
 export function resolveColl(coll: string, state: GameState): string {
@@ -26,6 +26,7 @@ export function resolveColl(coll: string, state: GameState): string {
 
 export function collectionName(coll: string, state: GameState): string {
   const c = resolveColl(coll, state);
+  if (c === 'bookcase') return 'Bookcase';
   if (c === 'all') return 'All Qcards';
   if (c === 'transition') return 'Transitions';
   if (c === 'progression') return 'Progressions';
@@ -44,7 +45,7 @@ export function collectionCards(coll: string, state: GameState, content: Content
   if (c === 'archive') return state.archivedCardIds.map((id) => content.cardById[id]).filter(Boolean);
   if (c === 'transition') return content.specialCards.filter((x) => x.kind === 'transition' && live(x));
   if (c === 'progression') return content.specialCards.filter((x) => x.kind === 'progression' && live(x));
-  if (c === 'all') return content.cards.filter((x) => x.kind !== 'transition' && live(x));
+  if (c === 'all' || c === 'bookcase') return content.cards.filter((x) => x.kind !== 'transition' && live(x));
   const deck = state.decks.find((d) => d.id === c);
   return deck ? deck.cardIds.map((id) => content.cardById[id]).filter((x) => x && live(x)) : [];
 }

@@ -27,11 +27,11 @@ npm run build:single # one self-contained HTML file in dist-single/
 | **Technique** | The skill tree. One branch for now, Mat Fundamentals: Breath, then Bridging, Core and Shoulders paths (18 Techniques). A Technique opens when you know its parent, have *performed* a parent in a Sequence, and can pay its cost. Learning it creates its Qcard. |
 | **Repertoire** | The workspace. Decks (one is primary; new Qcards are offered there first), All Qcards, Transitions, Progressions, Archive. Tap a Qcard to add it to the Sequence, or drag it onto the Sequence, onto a step (progressions) or onto a deck. Archive keeps cards out of the way without losing them. |
 | **Harmonies** | Seven sequencing principles from the Pilates Council (Arrive, Rising Arc, Counterpose, Seamless, Economy, Whole Body, Settle). They light up live in the builder beside a class-arc curve, a teacher's note says what would make the Sequence sing, and they pay out at the end of a performance. |
-| **Play** | A Sequence card by card, each dealt in with the Qcard alive. Completed cards stack on a solitaire-style pile; the last one sets off a victory lap and the Harmony ledger. Points: Foundation 10, Working 15, Challenge 20, transitions and progressions 5, plus a streak bonus. |
-| **Rank & intentions** | Practice Rank rises with every point ever earned; each rank has a gift you claim and Studio pieces it opens. Three daily intentions (one gentle, one steady, one deep) pay a little extra and cost nothing to miss. |
+| **Play** | A Sequence card by card, each dealt in with the Qcard alive. Completed cards stack on a solitaire-style pile; the last one sets off a victory lap and the Harmony ledger. One **Complete & Next** button; **Review** reorders steps and edits times; the **Timer +** wheel sets a card's time, and real times are learned back into the Sequence (rounded to 15 s). Scoring: a flat 15 for finishing, 10 per peak exercise, and each Harmony pays the first time that Sequence earns it. **Still to earn** shows what's left. |
+| **Rank & quests** | Practice Rank rises with every point ever earned; each rank has a gift you claim. Daily Quests mix in-game tasks with off-mat self-care (stretch, self-massage, walks, breath, posture, water); clear one and another is drawn. Choose how many (1 to 5), which kinds, and a preset (Office Worker, Low Back Health, Scoliosis-Friendly, Gentle Days). Skipping is free. |
 | **In the Queue** | Three lanes. The Queue: a snap-scrolling feed (Popular, Newest, Saved, Yours) whose reels play themselves through. For you (swipe left): picks you could perform tonight, with the reason. Live (swipe right): a preview of teacher demonstrations and creator support. Any Sequence can be tried, saved, remixed or improved, and sent to a client as a class plan. The feed is simulated on this device. |
 | **Studio** | Your page and your shop. Profile: studio name, mood, About me, the Sequence you're performing, a Top 8 of movers, Student and Teacher tracks. The room: badges on the shelf, mastery prints, the class board, Mochi the cat. Open for the evening and visitors walk in, read your board, and leave kudos and Guestbook notes keyed to its Harmonies. Decor unlocks through Rank, badges and Techniques. |
-| **Sound** | One synthesised kalimba in a pentatonic key: cards pluck, streaks climb the scale, Harmonies ring. Settings › Sound turns it off. |
+| **Sound** | One synthesised kalimba in a pentatonic key: cards pluck, the wheel ticks, Harmonies ring. Settings › Sound turns it off. |
 
 ## How it's put together
 
@@ -41,7 +41,7 @@ src/
     mat.ts              paths, Qcards and the Mat Fundamentals Technique tree
     catalog.ts          rules, badges, milestones (what earns each badge), skins
     studio.ts           Studio decor slots, variants, unlock conditions, titles
-    progress.ts         Practice Rank thresholds and gifts, daily intentions
+    progress.ts         Practice Rank thresholds and gifts
     community.ts        creators, moods, visitor lines, welcome notes
     seeds.ts            the sample In the Queue feed
     content.ts          indexes it all into one Content object
@@ -56,7 +56,7 @@ src/
     studio/Diorama.tsx  the isometric room, drawn from boxes and planes in SVG, with visitors and Mochi
     Garland.tsx         the lantern garland
     Harmonies.tsx       class arc, harmony row, teacher's note, the teachers' sheet
-    Journey.tsx         rank ring, the Journey sheet, the intention ribbon
+    Journey.tsx         rank ring, the Journey sheet, Daily Quests and their settings
     SendToClient.tsx    the class plan and the send sheet
     VictoryLap.tsx      the solitaire victory lap (canvas)
     sound.ts, fly.ts    the kalimba; flying cards and the ceremony flag

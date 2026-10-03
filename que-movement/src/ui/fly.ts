@@ -46,6 +46,8 @@ export function sequenceLanding(): Box | null {
   const list = document.querySelector('.queue__list');
   if (!list) return null;
   const r = list.getBoundingClientRect();
+  const sel = list.querySelector('.q-row.is-selected')?.getBoundingClientRect();
+  if (sel) return { left: r.left + 40, top: sel.top - 20, width: 52, height: 34 };
   const rows = list.querySelectorAll('[data-slot-row]');
   const last = rows[rows.length - 1]?.getBoundingClientRect();
   const top = last ? Math.min(last.bottom + 6, r.bottom - 40) : r.top + 24;

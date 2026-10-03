@@ -249,7 +249,7 @@ function Reel({ seq, playing, why }: { seq: Sequence; playing: boolean; why?: st
         </p>
         <h2 className="reel__name">{seq.name}</h2>
         {seq.note && <p className="reel__note">“{seq.note}”</p>}
-        <ClassArc slots={seq.slots} className="reel__arc" />
+        <ClassArc slots={seq.slots} className="reel__arc" compact />
         <p className="reel__meta"><strong className="reel__harmonies">✺ {met.length} of 7 Harmonies</strong> · {st.totalCards} cards · {st.durationLabel} · {mixLabel(st.mix)}</p>
         {seq.published && <p className="reel__meta">{plays.toLocaleString()} plays · {(seq.community?.saves ?? 0).toLocaleString()} saves</p>}
         {unknown.length > 0 && (

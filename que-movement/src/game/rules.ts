@@ -1,4 +1,4 @@
-// The rules of Que Movement: points, streaks, doses, seams, milestones and the Technique tree.
+// The rules of Que Movement: points, doses, seams, milestones and the Technique tree.
 import type { Card, Content, Dose, Milestone, MilestoneTrigger, MovementCard, Position, TechniqueNode, TransitionCard } from '../content/types';
 import { DECOR, TITLES, type DecorUnlock } from '../content/studio';
 import { MAX_RANK, RANK_XP } from '../content/progress';
@@ -9,10 +9,13 @@ export const SETUP_SECONDS = 15;
 export const GAP_BETWEEN_CARDS = 12;
 export const SLOW_TEMPO = 'pr-slow-tempo';
 
-/** Streak bonus: nothing for the first two cards, then +2 every three in a row, up to +10. */
-export function streakBonus(streak: number): number {
-  return streak < 3 ? 0 : Math.min(10, Math.floor(streak / 3) * 2);
-}
+/** Points for any Sequence performed through: never nothing, never worth grinding. */
+export const FLAT_RATE = 15;
+/** Points for completing a peak movement. */
+export const PEAK_POINTS = 10;
+
+/** Round to the nearest 15 seconds, never below 15. */
+export const round15 = (s: number) => Math.max(15, Math.round(s / 15) * 15);
 
 export function doseSeconds(dose: Dose, slow = false): number {
   const base = dose.kind === 'hold' ? dose.seconds : dose.reps * SECONDS_PER_REP;
@@ -58,7 +61,8 @@ export function viewSlot(slot: Slot, content: Content): SlotView | null {
   const modifiers = slot.modifiers.map((m) => content.cardById[m]).filter(Boolean) as Card[];
   const slow = modifiers.some((m) => m.id === SLOW_TEMPO);
   const extra = modifiers.filter((m) => m.id !== SLOW_TEMPO).reduce((a, m) => a + m.duration, 0);
-  const duration = card.kind === 'movement' ? doseWithSetup(card.dose, slow) + extra : card.duration + extra;
+  const planned = card.kind === 'movement' ? doseWithSetup(card.dose, slow) + extra : card.duration + extra;
+  const duration = slot.durationOverride ?? planned;
   return { slot, card, modifiers, points: card.points + modifiers.reduce((a, m) => a + m.points, 0), duration };
 }
 

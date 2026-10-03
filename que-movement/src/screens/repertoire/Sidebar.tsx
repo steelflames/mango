@@ -12,6 +12,7 @@ import { SendToClient } from '../../ui/SendToClient';
 import { useCardDrag } from './drag';
 import { collectionCards, resolveColl } from './library';
 import { MoreIcon } from './Library';
+import { DECK_SLOTS } from '../../game/reducer';
 
 function PlusIcon() {
   return <svg viewBox="0 0 24 24" width="17" height="17" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" aria-hidden="true"><path d="M12 6v12M6 12h12" /></svg>;
@@ -25,13 +26,14 @@ function CollArt({ coll, state, content }: { coll: string; state: GameState; con
   return ids.length ? <Mosaic cardIds={ids} content={content} className="coll__art" /> : <span className="coll__art coll__art--glyph" aria-hidden="true">❏</span>;
 }
 
-/** Left column: your decks, your whole collection, and your Sequences. */
+/** Decks: the left column. Collection, six custom deck slots, the Deck Library tin, and In the Queue. */
 export function Sidebar() {
   const { state, content } = useStore();
   const { builder, setBuilder } = useNav();
   const { drag } = useCardDrag();
   const newDeck = useNewDeck();
   const menu = useDeckMenu();
+  const { openSheet } = useOverlays();
   const current = resolveColl(builder.coll, state);
   const coll = (id: string, label: string) => {
     const on = current === id;
@@ -45,13 +47,21 @@ export function Sidebar() {
       </button>
     );
   };
+  const shelf = state.decks.filter((d) => !d.filed);
+  const filed = state.decks.filter((d) => d.filed);
+  const recent = state.sequences.filter((x) => (!x.seeded || state.savedSequenceIds.includes(x.id)))
+    .sort((a, b) => (b.savedAt ?? b.updatedAt) - (a.savedAt ?? a.updatedAt)).slice(0, 3);
   return (
-    <nav className="lib-side scroll" aria-label="Repertoire">
-      <div className="side-label side-label--row">
-        <span>Decks</span>
-        <button type="button" className="icon-btn icon-btn--sm" aria-label="New deck" title="New deck" onClick={() => void newDeck()}><PlusIcon /></button>
-      </div>
-      {state.decks.map((d) => {
+    <nav className="lib-side scroll" aria-label="Decks">
+      <h2 className="side-title">Decks</h2>
+      <p className="side-label">Collection</p>
+      {coll('bookcase', 'Bookcase')}
+      {coll('all', 'All Qcards')}
+      {coll('transition', 'Transitions')}
+      {coll('progression', 'Progressions')}
+      {coll('archive', 'Archive')}
+      <p className="side-label">Custom Decks <span className="side-label__n">{shelf.length} of {DECK_SLOTS}</span></p>
+      {shelf.map((d) => {
         const on = current === d.id;
         const primary = d.id === state.primaryDeckId;
         const n = collectionCards(d.id, state, content).length;
@@ -68,13 +78,66 @@ export function Sidebar() {
           </div>
         );
       })}
-      <p className="side-label">Collection</p>
-      {coll('all', 'All Qcards')}
-      {coll('transition', 'Transitions')}
-      {coll('progression', 'Progressions')}
-      {coll('archive', 'Archive')}
-      <Sequences />
+      {Array.from({ length: Math.max(0, DECK_SLOTS - shelf.length) }, (_, i) => (
+        <button key={`empty-${i}`} type="button" className="deck-slot" onClick={() => void newDeck()} data-a="New deck"><PlusIcon /> New deck</button>
+      ))}
+      <button type="button" className="tin-btn" onClick={() => openSheet({ eyebrow: 'Decks', title: 'Deck Library', body: <DeckLibrary /> })} data-a="Open the tin">
+        <span className="tin-btn__tin" aria-hidden="true" />
+        <span>Deck Library<small>{filed.length ? `${filed.length} filed away` : 'File decks here when the shelf is full'}</small></span>
+      </button>
+      <p className="side-label side-label--row"><span>In the Queue</span><button type="button" className="link-btn" onClick={() => openSheet({ eyebrow: 'Repertoire', title: 'Your Sequences', body: <YourSequences /> })}>See all</button></p>
+      <ul className="folder__list">
+        {recent.map((x) => <SeqRow key={x.id} seq={x} />)}
+        {!recent.length && <li className="folder__empty">Saved Sequences land here.</li>}
+      </ul>
     </nav>
+  );
+}
+
+/** The recipe tin: decks filed off the shelf. Unlimited; pull one out to swap it into a slot. */
+function DeckLibrary() {
+  const { state, content, dispatch } = useStore();
+  const { openMenu } = useOverlays();
+  const { toast } = useInput();
+  const shelf = state.decks.filter((d) => !d.filed);
+  const filed = state.decks.filter((d) => d.filed);
+  const pull = (anchor: HTMLElement, d: RepDeck) => {
+    if (shelf.length < DECK_SLOTS) { dispatch({ type: 'deck/unfile', deckId: d.id }); toast(`${d.name} is back on the shelf.`); return; }
+    openMenu(anchor, 'Swap it with…', shelf.filter((x) => x.id !== state.primaryDeckId).map<MenuItem>((x) => ({ label: x.name, hint: 'Goes into the tin', onSelect: () => { dispatch({ type: 'deck/unfile', deckId: d.id, swapWith: x.id }); toast(`${d.name} out, ${x.name} filed.`); } })));
+  };
+  return (
+    <div className="tin">
+      <div className="tin__lid" aria-hidden="true"><span>Recipes for the Mat</span></div>
+      <div className="tin__box">
+        {filed.map((d) => (
+          <div key={d.id} className="index-card">
+            <span className="index-card__tab">{d.name.slice(0, 1)}</span>
+            <Mosaic cardIds={d.cardIds} content={content} className="index-card__art" />
+            <span className="index-card__name">{d.name}<small>{d.cardIds.length} Qcards</small></span>
+            <button type="button" className="btn btn--ghost btn--sm" onClick={(e) => pull(e.currentTarget, d)}>Pull out</button>
+          </div>
+        ))}
+        {!filed.length && <p className="tin__empty">Nothing filed yet. From a deck’s ⋯ menu choose “File in the Deck Library”.</p>}
+      </div>
+      <p className="tin__note">Six decks sit on the shelf. The tin holds as many as you like.</p>
+    </div>
+  );
+}
+
+/** Every Sequence you've built or saved, for the Sequencer's “Your Sequences” button. */
+export function YourSequences() {
+  const { state } = useStore();
+  const mine = state.sequences.filter((x) => !x.seeded).sort((a, b) => b.updatedAt - a.updatedAt);
+  const saved = state.savedSequenceIds.map((id) => state.sequences.find((x) => x.id === id)).filter(Boolean) as Sequence[];
+  return (
+    <div className="your-seqs">
+      <p className="side-label">Built by you</p>
+      <ul className="folder__list">
+        {mine.map((x) => <SeqRow key={x.id} seq={x} />)}
+        {!mine.length && <li className="folder__empty">Save a Sequence in the Sequencer and it lands here.</li>}
+      </ul>
+      {saved.length > 0 && (<><p className="side-label">Saved from the Queue</p><ul className="folder__list">{saved.map((x) => <SeqRow key={x.id} seq={x} />)}</ul></>)}
+    </div>
   );
 }
 
@@ -106,33 +169,17 @@ export function useDeckMenu() {
         const name = await ask({ title: `Rename ${deck.name}`, label: 'Deck name', placeholder: deck.name, confirm: 'Rename' });
         if (name) dispatch({ type: 'deck/rename', deckId: deck.id, name });
       } },
+      { label: 'Move up', disabled: deck.filed, onSelect: () => dispatch({ type: 'deck/move', deckId: deck.id, dir: -1 }) },
+      { label: 'Move down', disabled: deck.filed, onSelect: () => dispatch({ type: 'deck/move', deckId: deck.id, dir: 1 }) },
+      deck.filed
+        ? { label: 'Pull out of the Deck Library', onSelect: () => dispatch({ type: 'deck/unfile', deckId: deck.id }) }
+        : { label: 'File in the Deck Library', disabled: primary, hint: primary ? 'The primary deck stays on the shelf' : 'Frees a slot; nothing is lost', onSelect: () => { dispatch({ type: 'deck/file', deckId: deck.id }); toast(`${deck.name} filed in the Deck Library.`); } },
       { label: 'Delete deck', danger: true, disabled: state.decks.length <= 1, hint: state.decks.length <= 1 ? 'Your only deck' : 'Its Qcards stay in All Qcards', onSelect: async () => {
         if (await confirm({ title: `Delete ${deck.name}?`, body: 'The deck goes. Its Qcards stay in your collection under All Qcards.', confirm: 'Delete deck', danger: true })) dispatch({ type: 'deck/delete', deckId: deck.id });
       } }
     ];
     openMenu(anchor, deck.name, items);
   };
-}
-
-function Sequences() {
-  const { state } = useStore();
-  const mine = state.sequences.filter((s) => !s.seeded).sort((a, b) => b.updatedAt - a.updatedAt);
-  const saved = state.savedSequenceIds.map((id) => state.sequences.find((s) => s.id === id)).filter(Boolean) as Sequence[];
-  return (
-    <>
-      <p className="side-label">Your Sequences</p>
-      <ul className="folder__list">
-        {mine.map((s) => <SeqRow key={s.id} seq={s} />)}
-        {!mine.length && <li className="folder__empty">Saved Sequences land here.</li>}
-      </ul>
-      {saved.length > 0 && (
-        <>
-          <p className="side-label">Saved from the Queue</p>
-          <ul className="folder__list">{saved.map((s) => <SeqRow key={s.id} seq={s} />)}</ul>
-        </>
-      )}
-    </>
-  );
 }
 
 /** The ⋯ menu for a Sequence, the same everywhere it appears. */

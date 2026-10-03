@@ -1,21 +1,24 @@
 import { CONTENT } from '../content/content';
 import { RULES } from '../content/catalog';
 import { STARTER_TRANSITIONS } from '../content/mat';
-import { INTENTIONS, intentionsFor, rankGift, todayKey, type IntentionEvent } from '../content/progress';
+import { rankGift, todayKey } from '../content/progress';
+import { drawQuest, PAID_CLEARS_PER_DAY, PRESETS, questById, type QuestEvent } from '../content/quests';
 import { seedSequences } from '../content/seeds';
 import { VISITS_PER_DAY, WELCOME_NOTES, type GuestNote } from '../content/community';
 import { DECOR, DEFAULT_DECOR } from '../content/studio';
 import type { Content } from '../content/types';
 import {
   addPoints, checkMilestones, decorOpen, editDistance, emptyAnalytics, newSlot, rankOf, readNode,
-  signature, simulatedAudience, streakBonus, viewSlot
+  FLAT_RATE, PEAK_POINTS, round15, signature, simulatedAudience, viewSlot
 } from './rules';
-import { harmonyPoints, readHarmonies } from './harmonies';
-import type { Action, GameState, Sequence } from './types';
+import { peakSlotIds, readHarmonies } from './harmonies';
+import type { Action, GameState, PlayState, Sequence } from './types';
 
 export const STORAGE_KEY = 'que-movement:v4';
 export const DEFAULT_THEME = 'night-market';
 export const PRIMARY_DECK = 'd-primary';
+/** Custom deck slots on the shelf; the rest live in the Deck Library. */
+export const DECK_SLOTS = 6;
 
 export function freshState(): GameState {
   const starters = CONTENT.branch.nodes.filter((n) => n.cost === 0).map((n) => n.cardId);
@@ -42,12 +45,11 @@ export function freshState(): GameState {
     unlockedThemeIds: CONTENT.themes.filter((t) => t.unlockedByDefault).map((t) => t.id),
     studioName: 'My Studio',
     decor: { ...DEFAULT_DECOR },
-    streak: 0,
     play: null,
     seenIntro: false,
     rankClaimed: 1,
-    intentions: freshIntentions(),
-    intentionFlash: null,
+    quests: freshQuests(),
+    questFlash: null,
     profile: { bio: '', mood: 'unhurried', top8: ['pip', 'wren'] },
     guestbook: [...WELCOME_NOTES],
     kudos: 0,
@@ -60,23 +62,44 @@ export function freshState(): GameState {
   };
 }
 
-function freshIntentions(): GameState['intentions'] {
-  const day = todayKey();
-  return { day, ids: intentionsFor(day), done: [] };
+function freshQuests(prev?: GameState['quests']): GameState['quests'] {
+  const preset = prev?.preset ?? 'everything';
+  const def = PRESETS.find((p) => p.id === preset)!;
+  const types = prev?.types ?? def.types;
+  const count = prev?.count ?? def.count;
+  const active: string[] = [];
+  for (let i = 0; i < count; i += 1) { const q = drawQuest(types, preset, active); if (q) active.push(q); }
+  return { day: todayKey(), active, cleared: 0, count, types, preset };
 }
 
-/** A new day brings three new intentions; yesterday's unfinished ones simply go. */
+/** A new day: fresh quests, the paid-clears counter back to zero. Settings carry over. */
 function today(state: GameState): GameState {
-  return state.intentions.day === todayKey() ? state : { ...state, intentions: freshIntentions() };
+  return state.quests?.day === todayKey() ? state : { ...state, quests: freshQuests(state.quests) };
 }
 
-/** Mark any of today's intentions these events complete, and pay them. */
-function intend(state: GameState, events: IntentionEvent[]): GameState {
+/** Clear a quest: pay it (while today's paid clears last) and draw another in its place. */
+function clearQuest(state: GameState, id: string, paid: boolean): GameState {
+  const q = state.quests;
+  if (!q.active.includes(id)) return state;
+  const def = questById(id);
+  const pays = paid && q.cleared < PAID_CLEARS_PER_DAY ? def?.points ?? 0 : 0;
+  const rest = q.active.filter((x) => x !== id);
+  const next = drawQuest(q.types, q.preset, [...rest, id]);
+  const active = q.active.map((x) => (x === id ? next : x)).filter(Boolean) as string[];
+  return {
+    ...state,
+    ...(pays ? addPoints(state, pays) : {}),
+    quests: { ...q, active, cleared: paid ? q.cleared + 1 : q.cleared },
+    questFlash: paid ? { id, points: pays } : state.questFlash
+  };
+}
+
+/** In-app quests clear themselves when what they ask for happens. */
+function intend(state: GameState, events: QuestEvent[]): GameState {
   let next = today(state);
   for (const e of events) {
-    if (!next.intentions.ids.includes(e) || next.intentions.done.includes(e)) continue;
-    const def = INTENTIONS.find((x) => x.id === e);
-    next = { ...next, ...addPoints(next, def?.points ?? 0), intentions: { ...next.intentions, done: [...next.intentions.done, e] }, intentionFlash: e };
+    const hit = next.quests.active.find((id) => questById(id)?.event === e);
+    if (hit) next = clearQuest(next, hit, true);
   }
   return next;
 }
@@ -120,7 +143,7 @@ function newSequence(name: string, slots: Sequence['slots'], now: number): Seque
   };
 }
 
-const copySlots = (slots: Sequence['slots']) => slots.map((s) => ({ ...newSlot(s.cardId), modifiers: [...s.modifiers] }));
+const copySlots = (slots: Sequence['slots']) => slots.map((s) => ({ ...newSlot(s.cardId), modifiers: [...s.modifiers], durationOverride: s.durationOverride }));
 
 export function reduce(state: GameState, action: Action, content: Content = CONTENT): GameState {
   switch (action.type) {
@@ -158,14 +181,20 @@ export function reduce(state: GameState, action: Action, content: Content = CONT
     }
     case 'draft/remove':
       return { ...state, draftSlots: state.draftSlots.filter((s) => s.slotId !== action.slotId) };
+    case 'draft/insertSlot': {
+      if (state.draftSlots.length >= RULES.maxSteps) return state;
+      const slots = [...state.draftSlots];
+      slots.splice(Math.max(0, Math.min(slots.length, action.index)), 0, action.slot);
+      return { ...state, draftSlots: slots };
+    }
     case 'draft/clear':
       return { ...state, draftSlots: [] };
     case 'draft/new':
-      return { ...state, draftSlots: [], draftName: '', draftSourceId: null, streak: 0 };
+      return { ...state, draftSlots: [], draftName: '', draftSourceId: null };
     case 'draft/load': {
       const seq = state.sequences.find((s) => s.id === action.sequenceId);
       if (!seq) return state;
-      return { ...state, draftSlots: copySlots(seq.slots), draftName: seq.name, draftSourceId: seq.seeded ? null : seq.id, streak: 0 };
+      return { ...state, draftSlots: copySlots(seq.slots), draftName: seq.name, draftSourceId: seq.seeded ? null : seq.id };
     }
     case 'sequence/save': {
       if (!state.draftSlots.length) return state;
@@ -177,9 +206,9 @@ export function reduce(state: GameState, action: Action, content: Content = CONT
       let id: string;
       if (existing) {
         id = existing.id;
-        next = updateSeq(state, id, (s) => ({ ...s, name, slots, updatedAt: now }));
+        next = updateSeq(state, id, (s) => ({ ...s, name, slots, updatedAt: now, savedAt: now }));
       } else {
-        const seq = newSequence(name, slots, now);
+        const seq = { ...newSequence(name, slots, now), savedAt: now };
         id = seq.id;
         next = { ...state, sequences: [seq, ...state.sequences] };
       }
@@ -212,7 +241,7 @@ export function reduce(state: GameState, action: Action, content: Content = CONT
       if (!src) return state;
       const now = Date.now();
       const seq = newSequence(src.seeded ? `${src.name}, remixed` : `${src.name} (remix)`, copySlots(src.slots), now);
-      return { ...state, sequences: [seq, ...state.sequences], draftSlots: copySlots(seq.slots), draftName: seq.name, draftSourceId: seq.id, streak: 0 };
+      return { ...state, sequences: [seq, ...state.sequences], draftSlots: copySlots(seq.slots), draftName: seq.name, draftSourceId: seq.id };
     }
     case 'sequence/delete':
       return {
@@ -223,7 +252,7 @@ export function reduce(state: GameState, action: Action, content: Content = CONT
       };
     case 'sequence/toggleSaved': {
       const on = state.savedSequenceIds.includes(action.sequenceId);
-      const next = updateSeq(state, action.sequenceId, (s) => (s.community ? { ...s, community: { ...s.community, saves: s.community.saves + (on ? -1 : 1) } } : s));
+      const next = updateSeq(state, action.sequenceId, (s) => ({ ...(s.community ? { ...s, community: { ...s.community, saves: s.community.saves + (on ? -1 : 1) } } : s), savedAt: on ? s.savedAt : Date.now() }));
       return { ...next, savedSequenceIds: on ? state.savedSequenceIds.filter((id) => id !== action.sequenceId) : [action.sequenceId, ...state.savedSequenceIds] };
     }
     case 'sequence/pin':
@@ -242,7 +271,8 @@ export function reduce(state: GameState, action: Action, content: Content = CONT
     }
 
     case 'deck/create': {
-      const decks = [...state.decks, { id: action.deckId, name: action.name, cardIds: action.cardIds ?? [] }];
+      const full = state.decks.filter((d) => !d.filed).length >= DECK_SLOTS;
+      const decks = [...state.decks, { id: action.deckId, name: action.name, cardIds: action.cardIds ?? [], filed: full }];
       return checkMilestones({ ...state, decks }, { trigger: 'deck-made' }, content);
     }
     case 'deck/rename':
@@ -251,6 +281,22 @@ export function reduce(state: GameState, action: Action, content: Content = CONT
       if (state.decks.length <= 1) return state;
       const decks = state.decks.filter((d) => d.id !== action.deckId);
       return { ...state, decks, primaryDeckId: state.primaryDeckId === action.deckId ? decks[0].id : state.primaryDeckId };
+    }
+    case 'deck/move': {
+      const shelf = state.decks.filter((d) => !d.filed);
+      const i = shelf.findIndex((d) => d.id === action.deckId);
+      const j = i + action.dir;
+      if (i < 0 || j < 0 || j >= shelf.length) return state;
+      [shelf[i], shelf[j]] = [shelf[j], shelf[i]];
+      return { ...state, decks: [...shelf, ...state.decks.filter((d) => d.filed)] };
+    }
+    case 'deck/file':
+      if (action.deckId === state.primaryDeckId) return state;
+      return { ...state, decks: state.decks.map((d) => (d.id === action.deckId ? { ...d, filed: true } : d)) };
+    case 'deck/unfile': {
+      const shelf = state.decks.filter((d) => !d.filed);
+      if (shelf.length >= DECK_SLOTS && (!action.swapWith || action.swapWith === state.primaryDeckId)) return state;
+      return { ...state, decks: state.decks.map((d) => (d.id === action.deckId ? { ...d, filed: false } : d.id === action.swapWith ? { ...d, filed: true } : d)) };
     }
     case 'deck/primary':
       return state.decks.some((d) => d.id === action.deckId) ? { ...state, primaryDeckId: action.deckId } : state;
@@ -273,8 +319,7 @@ export function reduce(state: GameState, action: Action, content: Content = CONT
       if (!seq || !seq.slots.length) return state;
       return {
         ...updateSeq(state, seq.id, (s) => ({ ...s, analytics: { ...s.analytics, plays: s.analytics.plays + 1 } })),
-        streak: 0,
-        play: { sequenceId: seq.id, index: 0, completedSlotIds: [], streak: 0, bestStreak: 0, pointsEarned: 0, startedAt: Date.now(), finished: false }
+        play: { sequenceId: seq.id, index: 0, completedSlotIds: [], pointsEarned: 0, startedAt: Date.now(), finished: false, learned: null }
       };
     }
     case 'play/goto': {
@@ -293,32 +338,42 @@ export function reduce(state: GameState, action: Action, content: Content = CONT
       if (!slot || play.completedSlotIds.includes(slot.slotId)) return state;
       const view = viewSlot(slot, content);
       if (!view) return state;
-      const streak = play.streak + 1;
-      const earned = view.points + streakBonus(streak);
+      const earned = peakSlotIds(seq.slots, content).includes(slot.slotId) ? PEAK_POINTS : 0;
       const counts = { ...state.completedCounts };
       for (const id of [view.card.id, ...view.modifiers.map((m) => m.id)]) counts[id] = (counts[id] ?? 0) + 1;
+      // Time learns from you: well off the plan, the step keeps what you actually took.
+      let learned: PlayState['learned'] = null;
+      const el = action.elapsed;
+      if (el !== undefined && Math.abs(el - view.duration) >= Math.max(15, view.duration * 0.25)) {
+        const seconds = round15(el);
+        if (seconds !== view.duration) learned = { slotId: slot.slotId, seconds };
+      }
       let next: GameState = {
         ...state,
         ...addPoints(state, earned),
-        streak,
         completedCounts: counts,
-        play: { ...play, streak, bestStreak: Math.max(play.bestStreak, streak), pointsEarned: play.pointsEarned + earned, completedSlotIds: [...play.completedSlotIds, slot.slotId] }
+        play: { ...play, pointsEarned: play.pointsEarned + earned, peakPoints: (play.peakPoints ?? 0) + earned, completedSlotIds: [...play.completedSlotIds, slot.slotId], learned }
       };
+      if (learned) next = updateSeq(next, seq.id, (s) => ({ ...s, slots: s.slots.map((x) => (x.slotId === learned!.slotId ? { ...x, durationOverride: learned!.seconds } : x)) }));
       const p = next.play!;
       if (p.completedSlotIds.length !== seq.slots.length) return next;
       // The whole Sequence is done: the teachers score it, then record it and check milestones.
       const completedCardIds = seq.slots.flatMap((s) => [s.cardId, ...s.modifiers]);
       const readings = readHarmonies(seq.slots, content, next.ownedCardIds);
       const met = readings.filter((r) => r.status === 'met');
-      const bonus = harmonyPoints(readings);
-      next = { ...next, ...addPoints(next, bonus), play: { ...p, pointsEarned: p.pointsEarned + bonus, harmonyIds: met.map((r) => r.def.id), harmonyPoints: bonus } };
+      const already = seq.harmoniesEarned ?? [];
+      const fresh = met.filter((r) => !already.includes(r.def.id));
+      const bonus = fresh.reduce((a, r) => a + r.def.points, 0);
+      next = { ...next, ...addPoints(next, bonus + FLAT_RATE), play: { ...p, pointsEarned: p.pointsEarned + bonus + FLAT_RATE, harmonyIds: met.map((r) => r.def.id), newHarmonyIds: fresh.map((r) => r.def.id), harmonyPoints: bonus, flatPoints: FLAT_RATE } };
+      next = updateSeq(next, seq.id, (s) => ({ ...s, harmoniesEarned: [...already, ...fresh.map((r) => r.def.id)] }));
       next = updateSeq(next, seq.id, (s) => ({ ...s, analytics: { ...s.analytics, completedPlays: s.analytics.completedPlays + 1, completionPercents: [...s.analytics.completionPercents, 100] } }));
       next = checkMilestones(next, { trigger: 'sequence-complete', completedCardIds, harmonies: met.length }, content);
       const sig = signature(seq.slots);
       if (seq.signatureAtLastCompletion && editDistance(seq.signatureAtLastCompletion, sig) >= 2) next = checkMilestones(next, { trigger: 'remix', completedCardIds }, content);
       next = updateSeq(next, seq.id, (s) => ({ ...s, signatureAtLastCompletion: sig }));
       const metIds = met.map((r) => r.def.id);
-      const events: IntentionEvent[] = ['perform'];
+      const events: QuestEvent[] = ['perform'];
+      if (seq.slots.some((sl) => sl.cardId.includes('bridge'))) events.push('bridge');
       if (met.length >= 3) events.push('harmony-3');
       if (metIds.includes('counterpose')) events.push('counterpose');
       if (metIds.includes('arrive') && metIds.includes('settle')) events.push('arrive-settle');
@@ -383,10 +438,40 @@ export function reduce(state: GameState, action: Action, content: Content = CONT
       const next = state.rankClaimed + 1;
       return { ...state, ...addPoints(state, rankGift(next)), rankClaimed: next };
     }
-    case 'intentions/refresh':
+    case 'quests/refresh':
       return today(state);
-    case 'ui/dismissIntention':
-      return { ...state, intentionFlash: null };
+    case 'quest/done':
+      return clearQuest(today(state), action.id, true);
+    case 'quest/skip':
+      return clearQuest(today(state), action.id, false);
+    case 'quests/settings': {
+      const q = today(state).quests;
+      const preset = action.preset ?? q.preset;
+      const def = PRESETS.find((p) => p.id === preset)!;
+      const types = action.types ?? (action.preset ? def.types : q.types);
+      const count = Math.max(1, Math.min(5, action.count ?? (action.preset ? def.count : q.count)));
+      if (!types.length) return state;
+      const keep = q.active.filter((id) => { const t = questById(id); return t && types.includes(t.type); }).slice(0, count);
+      while (keep.length < count) { const d = drawQuest(types, preset, keep); if (!d) break; keep.push(d); }
+      return { ...state, quests: { ...q, preset, types, count, active: keep } };
+    }
+    case 'ui/dismissQuest':
+      return { ...state, questFlash: null };
+    case 'sequence/slotTime':
+      return updateSeq(state, action.sequenceId, (s) => ({ ...s, slots: s.slots.map((x) => (x.slotId === action.slotId ? { ...x, durationOverride: Math.max(15, Math.min(600, action.seconds)) } : x)) }));
+    case 'sequence/reorder': {
+      const seq = state.sequences.find((s) => s.id === action.sequenceId);
+      if (!seq) return state;
+      const slots = [...seq.slots];
+      if (action.from < 0 || action.from >= slots.length) return state;
+      const current = state.play?.sequenceId === seq.id ? slots[state.play.index]?.slotId : undefined;
+      const [it] = slots.splice(action.from, 1);
+      slots.splice(Math.max(0, Math.min(slots.length, action.to)), 0, it);
+      let next = updateSeq(state, seq.id, (s) => ({ ...s, slots, updatedAt: Date.now() }));
+      if (current && next.play) next = { ...next, play: { ...next.play, index: slots.findIndex((x) => x.slotId === current) } };
+      if (state.draftSourceId === seq.id) next = { ...next, draftSlots: slots.map((x) => ({ ...x })) };
+      return next;
+    }
     case 'game/reset':
       return { ...freshState(), seenIntro: true };
     default:

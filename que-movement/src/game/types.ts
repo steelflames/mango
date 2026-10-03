@@ -1,5 +1,5 @@
 import type { GuestNote } from '../content/community';
-import type { IntentionEvent } from '../content/progress';
+import type { Preset, QuestType } from '../content/quests';
 
 export type ReactionKey = 'creative' | 'sweaty' | 'gentle' | 'educational';
 
@@ -8,6 +8,8 @@ export interface Slot {
   cardId: string;
   /** Progression card ids attached to this movement card (up to two). */
   modifiers: string[];
+  /** Seconds this step takes, learned from performing it or set by hand. */
+  durationOverride?: number;
 }
 
 export interface Analytics {
@@ -35,20 +37,28 @@ export interface Sequence {
   analytics: Analytics;
   community?: { plays: number; saves: number };
   signatureAtLastCompletion?: string[];
+  /** Harmonies this Sequence has already paid out. Each pays once per Sequence. */
+  harmoniesEarned?: string[];
+  /** When it was last saved (built or saved from the Queue). */
+  savedAt?: number;
 }
 
 export interface PlayState {
   sequenceId: string;
   index: number;
   completedSlotIds: string[];
-  streak: number;
-  bestStreak: number;
   pointsEarned: number;
   startedAt: number;
   finished: boolean;
   /** Harmonies met, paid out when the last card is completed. */
   harmonyIds?: string[];
+  /** Of those, the ones paid for the first time. */
+  newHarmonyIds?: string[];
   harmonyPoints?: number;
+  flatPoints?: number;
+  peakPoints?: number;
+  /** The last step whose time was learned, for a gentle note. */
+  learned?: { slotId: string; seconds: number } | null;
 }
 
 /** A player-made deck inside the Repertoire. */
@@ -56,6 +66,8 @@ export interface RepDeck {
   id: string;
   name: string;
   cardIds: string[];
+  /** Filed away in the Deck Library rather than in one of the six slots. */
+  filed?: boolean;
 }
 
 /** A newly learned Technique, waiting to be revealed as a Qcard. */
@@ -92,14 +104,21 @@ export interface GameState {
   unlockedThemeIds: string[];
   studioName: string;
   decor: Record<DecorSlot, string>;
-  streak: number;
   play: PlayState | null;
   seenIntro: boolean;
   /** Highest Practice Rank whose gift has been claimed. */
   rankClaimed: number;
-  intentions: { day: string; ids: IntentionEvent[]; done: IntentionEvent[] };
-  /** The intention just completed, for a moment's ribbon. */
-  intentionFlash: IntentionEvent | null;
+  quests: {
+    day: string;
+    active: string[];
+    /** Clears today; the first few pay. */
+    cleared: number;
+    count: number;
+    types: QuestType[];
+    preset: Preset;
+  };
+  /** The quest just cleared, for a moment's ribbon. */
+  questFlash: { id: string; points: number } | null;
   profile: { bio: string; mood: string; top8: string[] };
   guestbook: GuestNote[];
   /** Teacher standing: left by visitors to your Studio. */
@@ -131,6 +150,7 @@ export type Action =
   | { type: 'draft/detach'; slotId: string; cardId: string }
   | { type: 'draft/move'; from: number; to: number }
   | { type: 'draft/remove'; slotId: string }
+  | { type: 'draft/insertSlot'; slot: Slot; index: number }
   | { type: 'draft/clear' }
   | { type: 'draft/new' }
   | { type: 'draft/load'; sequenceId: string }
@@ -153,7 +173,7 @@ export type Action =
   | { type: 'card/restore'; cardId: string }
   | { type: 'play/start'; sequenceId: string }
   | { type: 'play/goto'; index: number }
-  | { type: 'play/complete' }
+  | { type: 'play/complete'; elapsed?: number }
   | { type: 'play/exit' }
   | { type: 'ui/dismissReveal' }
   | { type: 'ui/dismissMilestones' }
@@ -169,6 +189,14 @@ export type Action =
   | { type: 'client/remove'; id: string }
   | { type: 'client/send'; clientId: string; sequenceId: string; note: string }
   | { type: 'rank/claim' }
-  | { type: 'intentions/refresh' }
-  | { type: 'ui/dismissIntention' }
+  | { type: 'quests/refresh' }
+  | { type: 'quest/done'; id: string }
+  | { type: 'quest/skip'; id: string }
+  | { type: 'quests/settings'; count?: number; types?: QuestType[]; preset?: Preset }
+  | { type: 'ui/dismissQuest' }
+  | { type: 'deck/move'; deckId: string; dir: -1 | 1 }
+  | { type: 'deck/file'; deckId: string }
+  | { type: 'deck/unfile'; deckId: string; swapWith?: string }
+  | { type: 'sequence/slotTime'; sequenceId: string; slotId: string; seconds: number }
+  | { type: 'sequence/reorder'; sequenceId: string; from: number; to: number }
   | { type: 'game/reset' };

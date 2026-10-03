@@ -15,7 +15,7 @@ The player we design for: a 45-year-old woman who loves whimsy and has taste. Sh
 |---|---|---|
 | Mineko's Night Market art | Indigo dusk, lantern amber, paper stalls, gouache washes, cats in the details. Hand-made, never glossy. | Art |
 | Solitaire dopamine | Tiny certain rewards every few seconds: card snaps, rising notes, a pile that grows, a cascade at the end. | Game · Motion · Audio |
-| Genshin, without the gacha | A world to grow into: rank, a map of Techniques, a Studio, daily intentions. Every reward is visible before it's earned. | Game · Wellbeing |
+| Genshin, without the gacha | A world to grow into: rank, a map of Techniques, a Studio, daily quests. Every reward is visible before it's earned. | Game · Wellbeing |
 | Sophisticated for 45 + whimsy | Whimsy lives in details (a lantern sways, a visitor carries a tote), never in the chrome. | Art · Type · Motion |
 | Hearthstone meets Spotify | Qcards you drag like a deck; Sequences you shelve like playlists, with a live class-arc curve. | UX |
 | Decades of Pilates wisdom | The teachers' sequencing principles *score the build*. Expertise is the reward engine, not decoration. | Pilates Council |
@@ -46,9 +46,9 @@ These came out of the first leads' meeting. Each one names the departments it bi
 
 1. **Lanterns are knowledge.** *(Art × Game × Pilates)* A garland of 18 paper lanterns hangs over the market; one lights for every Technique you know. Progress is ambient and always visible, never a number you have to go looking for.
 2. **The teachers score the build.** *(Pilates × Game × UX)* Seven sequencing principles, called *Harmonies*, light up live in the builder the way synergies do in a deck builder, and pay out at the end of a performance. Margot's rule: every Harmony must be something a real teacher would say out loud in a class.
-3. **Every tap has a voice.** *(Audio × Motion)* One pentatonic kalimba palette. A streak climbs the scale; a Harmony plays an arpeggio; a Technique rings a bell. Nothing atonal, nothing loud. Sound is one toggle away.
+3. **Every tap has a voice.** *(Audio × Motion)* One pentatonic kalimba palette. Completed cards climb the scale; a Harmony plays an arpeggio; a Technique rings a bell. Nothing atonal, nothing loud. Sound is one toggle away.
 4. **The solitaire moment.** *(Game × Motion × Audio)* Completed cards stack onto a foundation pile. When the last card lands, the Harmonies reveal one by one, then the cards take a victory lap. Tap to skip, always.
-5. **No gacha, no guilt.** *(Wellbeing × Game)* Every reward is shown before it's earned. No randomised rewards, no energy, no streak that breaks, no timers that shame. Daily Intentions are invitations; missing one costs nothing. Rank never decays. Nia holds the veto.
+5. **No gacha, no guilt.** *(Wellbeing × Game)* Every reward is shown before it's earned. No randomised rewards, no energy, no streak that breaks, no timers that shame. Daily Quests are invitations: rewards fixed and shown, only which quest comes next is drawn, skipping costs nothing. Rank never decays. Nia holds the veto.
 6. **Your stall is your page.** *(Art × Community × Engineering)* The Studio is MySpace in a Moonlighter shop: a bio, a mood, your Top 8 movers, a guestbook, a featured Sequence, and visitors who wander in to look at your class board and leave notes.
 7. **Send it to someone real.** *(Community × Pilates × UX)* Any Sequence can go to a client with a note, as a clean class plan they can read on their phone. The game's most important exit is into a real practice.
 8. **Sophisticated whimsy.** *(Art × Type × Motion)* At most three accent colours on a screen. Body type never below 12px. Motion eases; only celebrations bounce. Whimsy goes in the details, never in the buttons.
@@ -59,7 +59,7 @@ These came out of the first leads' meeting. Each one names the departments it bi
 |---|---|---|
 | Seconds | Complete a card | Snap onto the pile, a rising note, points pop |
 | Minutes | Finish a Sequence | Harmony cascade, victory lap, points total, what's now within reach |
-| Days | Daily Intentions | Three gentle asks, a small bonus each, no penalty |
+| Days | Daily Quests | Customisable asks on and off the mat; clear one, draw another; no penalty |
 | Weeks | Practice Rank, Techniques, Studio | A lantern lit, a rank ring filled, a new piece for the Studio |
 | Community | Share, send, get remixed | Teacher standing, guestbook notes, visitors |
 
@@ -82,3 +82,5 @@ These came out of the first leads' meeting. Each one names the departments it bi
 - **Shipped (sprint 2):** night market art direction and Fraunces/Figtree type, lantern garland, Harmonies with class arc and teacher's notes, kalimba sound, solitaire pile and victory lap, Harmony ledger, Practice Rank with claimable gifts, Daily Intentions, Studio profile (mood, About me, Top 8, Guestbook) and visitors, Queue lanes (Live preview · The Queue · For you), sending class plans to clients.
 - **Next:** a commissioned illustration pass (hand-painted card art and Studio sprites), recorded kalimba samples, educator-written cues and modifications, accounts and cloud saves, a real feed.
 - **Later:** the Live lane (swipe left) with creator demonstrations, creator supporter tiers and payouts, more Technique branches (Reformer, Classical Mat, Pre/Postnatal), shared Studios.
+
+- **Shipped (sprint 3, spec v3):** The Sequencer (effort chart, Harmonies with tooltips, insert-above, drag-off delete with Undo), Decks with six slots and the Deck Library tin, Bookcase browse page, Play with Review, Timer + wheel and learned times, flat-rate and peak scoring with Still to earn, Daily Quests with presets. Streak removed.

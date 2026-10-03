@@ -8,7 +8,7 @@ import { StudioScreen } from './screens/StudioScreen';
 import { TechniqueScreen } from './screens/TechniqueScreen';
 import { Garland } from './ui/Garland';
 import { Intro } from './ui/Intro';
-import { IntentionRibbon } from './ui/Journey';
+import { QuestRibbon } from './ui/Journey';
 import { DEFAULT_BUILDER_VIEW, NavContext, SECTIONS, type BuilderView, type SectionId } from './ui/nav';
 import { OverlayProvider } from './ui/Overlays';
 import { Rewards } from './ui/Rewards';
@@ -94,7 +94,7 @@ function Frame({ section }: { section: SectionId }) {
       </div>
       {settingsOpen && <Settings />}
       <Rewards />
-      <IntentionRibbon />
+      <QuestRibbon />
       {!state.seenIntro && <Intro />}
       <Toast />
       <PortraitGuard />

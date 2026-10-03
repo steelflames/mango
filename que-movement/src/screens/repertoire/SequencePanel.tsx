@@ -11,16 +11,19 @@ import { useNav } from '../../ui/nav';
 import { useOverlays, type MenuItem } from '../../ui/Overlays';
 import { useDraft } from '../../ui/useDraft';
 import { useCardDrag } from './drag';
-import { ClassArc, HarmonyRow, TeacherNote } from '../../ui/Harmonies';
+import { ClassArc, HarmonyRow } from '../../ui/Harmonies';
+import { sfx } from '../../ui/sound';
+import type { Slot } from '../../game/types';
+import { YourSequences } from './Sidebar';
 import { MoreIcon } from './Library';
 
 function GripIcon() {
   return <svg viewBox="0 0 12 18" width="10" height="15" aria-hidden="true" fill="currentColor">{[3, 9, 15].map((y) => [3, 9].map((x) => <circle key={`${x}${y}`} cx={x} cy={y} r="1.4" />))}</svg>;
 }
 
-interface Drag { slotId: string; from: number; startY: number; dy: number; over: number; active: boolean; pointerId: number }
+interface Drag { slotId: string; from: number; startX: number; startY: number; dx: number; dy: number; over: number; active: boolean; out: boolean; pointerId: number }
 
-/** Right column: the Sequence, like a playlist. Name it, order it, bridge its seams, perform it. */
+/** The Sequencer: the build in progress, like a playlist. Name it, order it, bridge its seams, perform it. */
 export function SequencePanel() {
   const { state, dispatch, content } = useStore();
   const { builder, setBuilder } = useNav();
@@ -35,6 +38,9 @@ export function SequencePanel() {
   const headMore = useRef<HTMLButtonElement>(null);
   const [moving, setMoving] = useState<{ slotId: string; from: number } | null>(null);
   const [drag, setDrag] = useState<Drag | null>(null);
+  const [undo, setUndo] = useState<{ slot: Slot; index: number; name: string; key: number } | null>(null);
+  const panelRef = useRef<HTMLElement>(null);
+  useEffect(() => { if (!undo) return; const t = window.setTimeout(() => setUndo(null), 5000); return () => window.clearTimeout(t); }, [undo]);
   const prevIds = useRef<string[]>(slots.map((s) => s.slotId));
 
   // New steps scroll into view (the list is a playlist: you should see what you just added).
@@ -72,12 +78,17 @@ export function SequencePanel() {
   const onGripDown = (e: RPointerEvent<HTMLButtonElement>, slotId: string) => {
     if (e.button !== 0) return;
     e.currentTarget.setPointerCapture(e.pointerId);
-    setDrag({ slotId, from: indexOf(slotId), startY: e.clientY, dy: 0, over: indexOf(slotId), active: false, pointerId: e.pointerId });
+    setDrag({ slotId, from: indexOf(slotId), startX: e.clientX, startY: e.clientY, dx: 0, dy: 0, over: indexOf(slotId), active: false, out: false, pointerId: e.pointerId });
   };
   const onGripMove = (e: RPointerEvent<HTMLButtonElement>) => {
     if (!drag || e.pointerId !== drag.pointerId) return;
     const dy = e.clientY - drag.startY;
-    const active = drag.active || Math.abs(dy) > 6;
+    const dx = e.clientX - drag.startX;
+    const active = drag.active || Math.abs(dy) > 6 || Math.abs(dx) > 6;
+    // Pushed off the panel: this step is about to go.
+    const pb = panelRef.current?.getBoundingClientRect();
+    const out = !!pb && active && (e.clientX < pb.left - 16 || e.clientX > pb.right + 16 || e.clientY < pb.top - 16 || e.clientY > pb.bottom + 16);
+    if (out && !drag.out) sfx.tap();
     let over = drag.from;
     if (active) {
       const rows = Array.from(listRef.current?.querySelectorAll<HTMLElement>('[data-slot-row]') ?? []);
@@ -94,11 +105,17 @@ export function SequencePanel() {
         else if (e.clientY > box.bottom - 30) listRef.current.scrollTop += 8;
       }
     }
-    setDrag({ ...drag, dy, active, over });
+    setDrag({ ...drag, dx, dy, active, over, out });
   };
   const onGripUp = (e: RPointerEvent<HTMLButtonElement>) => {
     if (!drag || e.pointerId !== drag.pointerId) return;
-    if (drag.active) {
+    if (drag.active && drag.out) {
+      const slot = slots[drag.from];
+      const name = content.cardById[slot.cardId]?.name ?? 'Step';
+      dispatch({ type: 'draft/remove', slotId: slot.slotId });
+      if (builder.selectedSlotId === slot.slotId) setBuilder({ selectedSlotId: null });
+      setUndo({ slot, index: drag.from, name, key: Date.now() });
+    } else if (drag.active) {
       if (drag.over !== drag.from) { dispatch({ type: 'draft/move', from: drag.from, to: drag.over }); toast(`Moved to step ${drag.over + 1}.`); }
     } else toggleMove(drag.slotId);
     setDrag(null);
@@ -138,16 +155,17 @@ export function SequencePanel() {
     { label: 'Clear all steps', disabled: !slots.length, onSelect: async () => { if (await confirm({ title: 'Clear every step?', body: 'The name stays. Saved copies are untouched.', confirm: 'Clear steps', danger: true })) dispatch({ type: 'draft/clear' }); } }
   ]);
 
-  const save = () => { if (!slots.length) return; dispatch({ type: 'sequence/save' }); toast(`${state.draftName.trim() || 'Untitled Sequence'} saved. It’s under Your Sequences.`); };
+  const save = () => { if (!slots.length) return; dispatch({ type: 'sequence/save' }); toast(`${state.draftName.trim() || 'Untitled Sequence'} saved. Find it under Your Sequences, up top.`); };
 
   const start = () => { if (slots.length) dispatch({ type: 'sequence/saveAndStart' }); };
   const seamBefore = new Map<number, Seam>(seams.filter((s) => s.status === 'open').map((s) => [s.index, s]));
 
   return (
-    <aside className="queue" aria-label="Your sequence">
+    <aside className="queue" aria-label="The Sequencer" ref={panelRef}>
       <header className="queue__head">
-        <p className="eyebrow">Your Sequence</p>
-        <button ref={headMore} type="button" className="more-btn" aria-label="Build options" aria-haspopup="menu" onClick={headMenu}><MoreIcon /></button>
+        <p className="eyebrow">The Sequencer</p>
+        <button type="button" className="queue__yours" onClick={() => openSheet({ eyebrow: 'Repertoire', title: 'Your Sequences', body: <YourSequences /> })} data-a="Your Sequences">Your Sequences</button>
+        <button ref={headMore} type="button" className="more-btn" aria-label="Sequencer options" aria-haspopup="menu" onClick={headMenu}><MoreIcon /></button>
       </header>
       <label className="queue__name">
         <span className="sr-only">Name this Sequence</span>
@@ -182,8 +200,8 @@ export function SequencePanel() {
               <li
                 data-slot-row={id}
                 data-kind={v.card.kind}
-                className={`q-row q-row--${v.card.kind} ${cardDrag?.target?.kind === 'slot' && cardDrag.target.slotId === id ? 'is-attach' : ''} ${selected ? 'is-selected' : ''} ${isMoving ? 'is-moving' : ''} ${isDragged ? 'is-dragged' : ''} ${tStatus ? `is-${tStatus}` : ''}`}
-                style={isDragged ? { transform: `translateY(${drag!.dy}px)` } : undefined}
+                className={`q-row q-row--${v.card.kind} ${isDragged && drag!.out ? 'is-doomed' : ''} ${cardDrag?.target?.kind === 'slot' && cardDrag.target.slotId === id ? 'is-attach' : ''} ${selected ? 'is-selected' : ''} ${isMoving ? 'is-moving' : ''} ${isDragged ? 'is-dragged' : ''} ${tStatus ? `is-${tStatus}` : ''}`}
+                style={isDragged ? { transform: `translate(${drag!.out ? drag!.dx : 0}px, ${drag!.dy}px)` } : undefined}
                 data-x={`qm-${id}`} data-x-label="Step options"
               >
                 <button type="button" className="q-row__grip" data-grip={id}
@@ -199,7 +217,7 @@ export function SequencePanel() {
                   data-a={selected ? 'Unselect' : 'Select'}>
                   <span className="q-row__art"><Art card={v.card} content={content} /></span>
                   <span className="q-row__text">
-                    <span className="q-row__name">{v.card.name}</span>
+                    <span className="q-row__name">{isDragged && drag!.out ? 'Release to remove' : v.card.name}</span>
                     <span className="q-row__meta">{rowMeta(v.card)} · {clock(v.duration)}</span>
                     {v.modifiers.length > 0 && <span className="q-row__mods">+ {v.modifiers.map((m) => m.name).join(' + ')}</span>}
                     {tStatus && <span className="q-row__status">{tStatus === 'matched' ? 'Bridges the change here' : tStatus === 'unneeded' ? 'No change of position here' : 'Doesn’t match the change here'}</span>}
@@ -226,7 +244,12 @@ export function SequencePanel() {
         {route.length > 1 && slots.length > 0 && (
           <p className="queue__route"><span className="eyebrow">Route</span> {route.map((p) => POSITION_LABEL[p]).join(' → ')}</p>
         )}
-        <TeacherNote slots={slots} />
+        {undo && (
+          <p className="undo" key={undo.key} role="status">
+            <span>{undo.name} removed.</span>
+            <button type="button" onClick={() => { dispatch({ type: 'draft/insertSlot', slot: undo.slot, index: undo.index }); setUndo(null); }}>Undo</button>
+          </p>
+        )}
         <div className="queue__actions">
           <button type="button" className="btn btn--ghost" aria-disabled={!slots.length || !draft.dirty || undefined} onClick={save} data-a={draft.dirty ? 'Save' : 'Saved'}>
             {slots.length && !draft.dirty ? 'Saved ✓' : 'Save'}

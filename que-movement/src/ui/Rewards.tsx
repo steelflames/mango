@@ -37,11 +37,17 @@ export function Rewards() {
             <div className="flip__back" aria-hidden="true"><span>Q</span></div>
             <div className="flip__front"><BigCard card={card} content={content} glow compact /></div>
           </div>
-          <p className="reveal__note">{node?.note} Add it to your Repertoire to build with it.</p>
+          <p className="reveal__note">{node?.note} It’s yours either way.</p>
         </div>
         <div className="reveal__actions">
-          <button type="button" className="btn btn--primary btn--big" data-autofocus="" onClick={add}>Add to {primary.name}</button>
-          <button type="button" className="btn btn--ghost" onClick={keep}>Keep in collection</button>
+          <button type="button" className="btn btn--primary btn--big btn--explain" data-autofocus="" onClick={add}>
+            <span>Add to {primary.name}</span>
+            <small>Your primary deck: it’s there first when you build.</small>
+          </button>
+          <button type="button" className="btn btn--ghost btn--explain" onClick={keep}>
+            <span>Keep in collection</span>
+            <small>It stays in All Qcards. Add it to any deck later.</small>
+          </button>
         </div>
       </Layer>
     );
